@@ -5,6 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $rootPath = (Resolve-Path -LiteralPath $Root).Path
+$rootPrefix = $rootPath.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
@@ -28,7 +29,7 @@ while ($listener.IsListening) {
     if ([string]::IsNullOrWhiteSpace($urlPath)) { $urlPath = "index.html" }
     $fullPath = [IO.Path]::GetFullPath((Join-Path $rootPath $urlPath))
 
-    if (-not $fullPath.StartsWith($rootPath, [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($fullPath)) {
+    if (-not $fullPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($fullPath)) {
       $context.Response.StatusCode = 404
       $bytes = [Text.Encoding]::UTF8.GetBytes("Not found")
     } else {

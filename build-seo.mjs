@@ -47,7 +47,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <link rel="alternate" hreflang="uk-UA" href="${esc(canonicalUrl)}">
     <link rel="alternate" hreflang="ru-UA" href="${esc(canonicalUrl)}?lang=ru">
     <link rel="alternate" hreflang="x-default" href="${esc(canonicalUrl)}">
-    <link rel="icon" type="image/png" href="../assets/flaks-logo.png">
+    <link rel="icon" type="image/png" href="../assets/favicon-32.png">
     <link rel="stylesheet" href="../styles.css">
     <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
   </head>
@@ -58,6 +58,11 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
         <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
+        <a class="contact-link" href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
+        <a class="contact-link" href="../about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
+        <a class="contact-link" href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+        <a class="contact-link" href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
+        <a class="contact-link" href="../articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
         <div class="lang-switch" role="group" aria-label="Language">
@@ -74,38 +79,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
       <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Повернутися до каталогу</span><span data-lang-content="ru" hidden>Вернуться в каталог</span></a>
     </footer>
-    <script>
-      (() => {
-        const params = new URLSearchParams(window.location.search);
-        const stored = localStorage.getItem("flaks-lang");
-        const lang = params.get("lang") === "ru" || params.get("lang") === "uk" ? params.get("lang") : stored === "ru" ? "ru" : "uk";
-        const applyLang = (nextLang) => {
-          document.documentElement.lang = nextLang;
-          localStorage.setItem("flaks-lang", nextLang);
-          document.querySelectorAll("[data-lang-content]").forEach((node) => {
-            node.hidden = node.dataset.langContent !== nextLang;
-          });
-          document.querySelectorAll("[data-lang]").forEach((button) => {
-            button.classList.toggle("active", button.dataset.lang === nextLang);
-          });
-          const title = document.body.dataset[nextLang === "ru" ? "titleRu" : "titleUk"];
-          const description = document.body.dataset[nextLang === "ru" ? "descriptionRu" : "descriptionUk"];
-          if (title) document.title = title;
-          const meta = document.querySelector('meta[name="description"]');
-          if (meta && description) meta.setAttribute("content", description);
-          document.querySelectorAll("a[data-keep-lang], .seo-table-wrap a").forEach((link) => {
-            const url = new URL(link.getAttribute("href"), window.location.href);
-            if (nextLang === "ru") url.searchParams.set("lang", "ru");
-            else url.searchParams.delete("lang");
-            link.setAttribute("href", url.pathname + url.search + url.hash);
-          });
-        };
-        document.querySelectorAll("[data-lang]").forEach((button) => {
-          button.addEventListener("click", () => applyLang(button.dataset.lang));
-        });
-        applyLang(lang);
-      })();
-    </script>
+    <script src="../assets/seo-lang-switch.js"></script>
   </body>
 </html>`;
 }
@@ -242,9 +216,13 @@ await fs.writeFile(
       short_name: "FLAKS",
       start_url: "/",
       display: "standalone",
-      background_color: "#f6f7f8",
+      background_color: "#081016",
       theme_color: "#182028",
-      description: "Каталог металлообрабатывающего инструмента FLAKS.",
+      description: "Каталог металообробного та металлообрабатывающего инструмента FLAKS.",
+      icons: [
+        { src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "/assets/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
     },
     null,
     2,

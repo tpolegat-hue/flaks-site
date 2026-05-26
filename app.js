@@ -580,6 +580,19 @@ function updateSearchUrl() {
     url.searchParams.delete("lang");
   }
   window.history.replaceState({}, "", url);
+  updateLanguageLinks();
+}
+
+function updateLanguageLinks() {
+  document.querySelectorAll("a[data-keep-lang]").forEach((link) => {
+    const url = new URL(link.getAttribute("href"), window.location.href);
+    if (state.lang === "ru") {
+      url.searchParams.set("lang", "ru");
+    } else {
+      url.searchParams.delete("lang");
+    }
+    link.setAttribute("href", url.pathname + url.search + url.hash);
+  });
 }
 
 function applyUrlState() {
@@ -604,6 +617,7 @@ function init() {
   applyUrlState();
   bindEvents();
   translatePage();
+  updateLanguageLinks();
   setView(state.view);
   render();
 }

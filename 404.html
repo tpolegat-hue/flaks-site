@@ -6,29 +6,39 @@
     <meta name="robots" content="noindex" />
     <title>Сторінку не знайдено | FLAKS</title>
     <link rel="stylesheet" href="/styles.css" />
-    <link rel="icon" type="image/png" href="/assets/flaks-logo.png" />
+    <link rel="icon" type="image/png" href="/assets/favicon-32.png" />
   </head>
-  <body>
+  <body data-title-uk="Сторінку не знайдено | FLAKS" data-title-ru="Страница не найдена | FLAKS">
     <header class="topbar">
-      <a class="brand" href="/">
+      <a class="brand" href="/" data-keep-lang>
         <span class="brand-mark"><img src="/assets/flaks-logo.png" alt="" /></span>
-        <span><strong>FLAKS</strong><small>Металообробний інструмент</small></span>
+        <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
+        <a class="contact-link" href="/#catalog" data-keep-lang>Каталог</a>
+        <a class="contact-link" href="/about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
+        <a class="contact-link" href="/delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+        <a class="contact-link" href="/contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
+        <a class="contact-link" href="/articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button class="active" type="button" data-lang="uk">UA</button>
+          <button type="button" data-lang="ru">RU</button>
+        </div>
       </nav>
     </header>
     <main class="seo-page">
       <section class="seo-hero">
         <p class="eyebrow">404</p>
-        <h1>Сторінку не знайдено<span>Страница не найдена</span></h1>
-        <p>Перейдіть до каталогу FLAKS або надішліть заявку на пошту.</p>
+        <h1><span data-lang-content="uk">Сторінку не знайдено</span><span data-lang-content="ru" hidden>Страница не найдена</span></h1>
+        <p><span data-lang-content="uk">Перейдіть до каталогу FLAKS або надішліть заявку на пошту.</span><span data-lang-content="ru" hidden>Перейдите в каталог FLAKS или отправьте заявку на почту.</span></p>
         <div class="hero-actions">
-          <a class="primary-button" href="/#catalog">Відкрити каталог</a>
-          <a class="secondary-button" href="mailto:tpolegat@gmail.com">Написати</a>
+          <a class="primary-button" href="/#catalog" data-keep-lang><span data-lang-content="uk">Відкрити каталог</span><span data-lang-content="ru" hidden>Открыть каталог</span></a>
+          <a class="secondary-button" href="mailto:tpolegat@gmail.com"><span data-lang-content="uk">Написати</span><span data-lang-content="ru" hidden>Написать</span></a>
         </div>
       </section>
     </main>
+    <script src="/assets/seo-lang-switch.js"></script>
   </body>
 </html>
