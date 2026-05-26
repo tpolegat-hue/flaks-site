@@ -702,6 +702,20 @@ td {
   background: var(--surface);
 }
 
+.developer-credit {
+  color: #7f8d98;
+}
+
+.developer-credit a {
+  color: var(--steel);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.developer-credit a:hover {
+  color: var(--accent);
+}
+
 .seo-page {
   padding: 0 clamp(16px, 4vw, 48px) 42px;
 }
