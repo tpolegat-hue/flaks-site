@@ -1,0 +1,12 @@
+.git/
+.vercel/
+node_modules/
+server.*.log
+*.log
+flaks-*-screenshot.png
+flaks-screenshot.png
+build-site.ps1
+build-seo.mjs
+serve.ps1
+articles/template.html
+articles/README.md
