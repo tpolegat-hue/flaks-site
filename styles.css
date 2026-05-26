@@ -199,10 +199,11 @@ h1 {
 
 .hero-copy h1 {
   max-width: 660px;
-  font-size: clamp(36px, 5.2vw, 66px);
+  font-size: clamp(30px, 4.7vw, 60px);
   line-height: 1;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .hero-copy p:not(.eyebrow) {
@@ -312,8 +313,11 @@ h1 {
 
 .company-copy h2 {
   max-width: 900px;
-  font-size: clamp(28px, 4vw, 46px);
-  line-height: 1.04;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.08;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .company-copy p:not(.eyebrow) {
@@ -918,7 +922,11 @@ td {
   }
 
   h1 {
-    font-size: 38px;
+    font-size: 30px;
+  }
+
+  .hero-copy h1 {
+    font-size: 24px;
   }
 
   .hero-actions a {
