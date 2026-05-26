@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Металообробний інструмент FLAKS купити в Україні | Фрези, свердла, мітчики</title>
+    <meta
+      name="description"
+      content="FLAKS: каталог металлообрабатывающего инструмента из наличия с ценами в гривне без НДС."
+    />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#182028" />
+    <meta property="og:title" content="Металообробний інструмент FLAKS купити в Україні" />
+    <meta
+      property="og:description"
+      content="Каталог металлообрабатывающего инструмента FLAKS: цены в гривне без НДС, наличие, заявки по email и телефону."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FLAKS" />
+    <meta property="og:image" content="assets/flaks-logo.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="sitemap" type="application/xml" href="sitemap.xml" />
+    <link rel="canonical" href="https://flaks.com.ua/" />
+    <link rel="alternate" hreflang="uk-UA" href="https://flaks.com.ua/" />
+    <link rel="alternate" hreflang="ru-UA" href="https://flaks.com.ua/?lang=ru" />
+    <link rel="alternate" hreflang="x-default" href="https://flaks.com.ua/" />
+    <link rel="icon" type="image/png" href="assets/flaks-logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "FLAKS",
+        "email": "tpolegat@gmail.com",
+        "telephone": "+380675453115",
+        "url": "https://flaks.com.ua"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "FLAKS",
+        "url": "https://flaks.com.ua",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://flaks.com.ua/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="FLAKS">
+        <span class="brand-mark"><img src="assets/flaks-logo.png" alt="" /></span>
+        <span>
+          <strong>FLAKS</strong>
+          <small data-i18n="brandNote">Металообробний інструмент</small>
+        </span>
+      </a>
+
+      <nav class="top-actions" aria-label="Contacts and language">
+        <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
+        <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button class="active" type="button" data-lang="uk">UA</button>
+          <button type="button" data-lang="ru">RU</button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <img class="hero-bg" src="assets/flaks-logo.png" alt="" />
+        <div class="hero-copy">
+          <p class="eyebrow" data-i18n="eyebrow">Прайс із наявності</p>
+          <h1 data-i18n="heroTitle">Металообробний інструмент FLAKS</h1>
+          <p data-i18n="heroText">
+            Каталог із цінами в гривні без ПДВ, залишками на складі та швидкою заявкою через email або телефон.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#catalog" data-i18n="openCatalog">Відкрити каталог</a>
+            <a class="secondary-button" href="mailto:tpolegat@gmail.com" data-i18n="sendRequest">Надіслати заявку</a>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <img src="assets/flaks-logo.png" alt="" />
+        </div>
+      </section>
+
+      <section class="stats" aria-label="Catalog statistics">
+        <div>
+          <strong id="statProducts">0</strong>
+          <span data-i18n="items">позицій</span>
+        </div>
+        <div>
+          <strong id="statCategories">0</strong>
+          <span data-i18n="categories">категорій</span>
+        </div>
+        <div>
+          <strong data-i18n="uah">UAH</strong>
+          <span data-i18n="noVat">ціни без ПДВ</span>
+        </div>
+      </section>
+
+      <section class="category-index" aria-labelledby="categoryIndexTitle">
+        <div class="category-index-head">
+          <p class="eyebrow" data-i18n="seoCategories">Категорії інструменту</p>
+          <h2 id="categoryIndexTitle" data-i18n="categoryIndexTitle">Швидкий перехід до розділів</h2>
+        </div>
+        <div class="category-links" id="categoryLinks"></div>
+      </section>
+
+      <section class="catalog-shell" id="catalog">
+        <aside class="filters" aria-label="Catalog filters">
+          <div class="filter-head">
+            <h2 data-i18n="catalog">Каталог</h2>
+            <button class="icon-button" type="button" id="resetFilters" aria-label="Reset filters" title="Reset">
+              <span aria-hidden="true">↺</span>
+            </button>
+          </div>
+
+          <label class="field">
+            <span data-i18n="search">Пошук</span>
+            <input id="searchInput" type="search" autocomplete="off" data-i18n-placeholder="searchPlaceholder" />
+            <small class="field-note" data-i18n="diameterHint">Ф, Ø, d і діаметр шукаються однаково.</small>
+          </label>
+
+          <label class="field">
+            <span data-i18n="category">Категорія</span>
+            <select id="categorySelect"></select>
+          </label>
+
+          <label class="field">
+            <span data-i18n="sort">Сортування</span>
+            <select id="sortSelect">
+              <option value="relevance" data-i18n="sortRelevance">За релевантністю</option>
+              <option value="priceAsc" data-i18n="sortPriceAsc">Ціна: від нижчої</option>
+              <option value="priceDesc" data-i18n="sortPriceDesc">Ціна: від вищої</option>
+              <option value="qtyDesc" data-i18n="sortQtyDesc">Наявність: більше</option>
+              <option value="nameAsc" data-i18n="sortNameAsc">Назва: А-Я</option>
+            </select>
+          </label>
+
+          <label class="check-row">
+            <input id="stockOnly" type="checkbox" checked />
+            <span data-i18n="stockOnly">Тільки з наявністю</span>
+          </label>
+
+          <div class="contact-box">
+            <strong data-i18n="needHelp">Потрібна допомога з підбором?</strong>
+            <p data-i18n="helpText">Надішліть список позицій або артикулів, і ми уточнимо наявність.</p>
+            <a href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
+          </div>
+        </aside>
+
+        <section class="results" aria-live="polite">
+          <div class="results-head">
+            <div>
+              <p class="eyebrow" data-i18n="availableNow">Доступно зараз</p>
+              <h2><span id="resultCount">0</span> <span data-i18n="found">позицій знайдено</span></h2>
+            </div>
+            <div class="view-toggle" role="group" aria-label="View mode">
+              <button class="active" type="button" data-view="table" title="Table">☰</button>
+              <button type="button" data-view="cards" title="Cards">▦</button>
+            </div>
+          </div>
+
+          <div class="table-wrap" id="tableView">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="tableName">Найменування</th>
+                  <th data-i18n="tableCategory">Категорія</th>
+                  <th data-i18n="tableQty">К-сть</th>
+                  <th data-i18n="tablePrice">Ціна без ПДВ</th>
+                  <th data-i18n="tableAction">Заявка</th>
+                </tr>
+              </thead>
+              <tbody id="productRows"></tbody>
+            </table>
+          </div>
+
+          <div class="cards-view hidden" id="cardsView"></div>
+
+          <div class="pager">
+            <button type="button" id="prevPage" data-i18n="prev">Назад</button>
+            <span id="pageInfo"></span>
+            <button type="button" id="nextPage" data-i18n="next">Далі</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <strong>FLAKS</strong>
+      <span data-i18n="footerText">Металообробний інструмент з наявності. Ціни в гривні без ПДВ.</span>
+      <span>+380 67 545 31 15 · tpolegat@gmail.com</span>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

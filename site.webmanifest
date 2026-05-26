@@ -1,0 +1,9 @@
+{
+  "name": "FLAKS",
+  "short_name": "FLAKS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f8",
+  "theme_color": "#182028",
+  "description": "Каталог металлообрабатывающего инструмента FLAKS."
+}
