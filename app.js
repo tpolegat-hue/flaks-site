@@ -336,6 +336,11 @@ function requestHref(product) {
   return `mailto:${data.store.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
 }
 
+function productPageHref(product) {
+  const suffix = state.lang === "ru" ? "?lang=ru" : "";
+  return `products/${product.sku.toLowerCase()}.html${suffix}`;
+}
+
 function translatePage() {
   els.html.lang = state.lang;
   document.title =
@@ -430,7 +435,7 @@ function renderRows(products) {
       return `
         <tr>
           <td class="name-cell">
-            <strong>${escapeHtml(productName(product))}</strong>
+            <strong><a href="${escapeHtml(productPageHref(product))}">${escapeHtml(productName(product))}</a></strong>
             <small>${escapeHtml(t("sku"))}: ${escapeHtml(product.sku)}${section ? ` · ${escapeHtml(t("section"))}: ${escapeHtml(section)}` : ""}</small>
           </td>
           <td>${escapeHtml(categoryName(product))}</td>
@@ -456,7 +461,7 @@ function renderCards(products) {
         <article class="product-card">
           <div>
             <p class="eyebrow">${escapeHtml(categoryName(product))}</p>
-            <h3>${escapeHtml(productName(product))}</h3>
+            <h3><a href="${escapeHtml(productPageHref(product))}">${escapeHtml(productName(product))}</a></h3>
             <span class="muted">${escapeHtml(t("sku"))}: ${escapeHtml(product.sku)}${section ? ` · ${escapeHtml(section)}` : ""}</span>
           </div>
           <div class="card-meta">

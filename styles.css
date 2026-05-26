@@ -55,6 +55,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
   text-decoration: none;
 }
 
@@ -88,6 +89,7 @@ select {
   display: block;
   color: var(--muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .top-actions {
@@ -96,11 +98,13 @@ select {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .contact-link {
   color: var(--muted);
   font-size: 14px;
+  overflow-wrap: anywhere;
   text-decoration: none;
 }
 
@@ -191,6 +195,14 @@ h1 {
   max-width: 700px;
   font-size: clamp(38px, 6vw, 72px);
   line-height: 0.96;
+}
+
+.hero-copy h1 {
+  max-width: 660px;
+  font-size: clamp(36px, 5.2vw, 66px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .hero-copy p:not(.eyebrow) {
@@ -597,6 +609,17 @@ td {
   max-width: 680px;
 }
 
+.name-cell a,
+.product-card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.name-cell a:hover,
+.product-card h3 a:hover {
+  color: var(--accent);
+}
+
 .name-cell small,
 .muted {
   display: block;
@@ -699,6 +722,18 @@ td {
   color: var(--muted);
   font-size: clamp(18px, 2.3vw, 28px);
   font-weight: 600;
+}
+
+.seo-hero h1 [data-lang-content] {
+  display: inline;
+  margin-top: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.seo-hero h1 [data-lang-content][hidden] {
+  display: none;
 }
 
 .seo-hero p {
@@ -858,6 +893,10 @@ td {
 @media (max-width: 560px) {
   .topbar {
     position: static;
+  }
+
+  .brand small {
+    max-width: 210px;
   }
 
   .top-actions {
