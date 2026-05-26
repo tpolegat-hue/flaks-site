@@ -9,8 +9,8 @@ const data = JSON.parse(dataText.replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, ""
 
 const productDir = path.join(root, "products");
 const categoryDir = path.join(root, "catalog");
-const categoryPreviewLimit = 120;
-const contentLastmod = String(data.generatedAt || "2026-05-26").slice(0, 10);
+const categoryPageSize = 120;
+const contentLastmod = String(data.priceUpdatedAt || data.generatedAt || "2026-05-26").slice(0, 10);
 await fs.mkdir(productDir, { recursive: true });
 await fs.mkdir(categoryDir, { recursive: true });
 
@@ -35,6 +35,32 @@ function slugProduct(product) {
 
 function price(value) {
   return Number(value).toFixed(2);
+}
+
+function lastmod(value) {
+  return String(value || contentLastmod).slice(0, 10);
+}
+
+function categoryPageHref(category, pageNumber) {
+  return pageNumber === 1 ? `/catalog/${category.slug}.html` : `/catalog/${category.slug}-page-${pageNumber}.html`;
+}
+
+function pagination(category, currentPage, totalPages) {
+  if (totalPages <= 1) return "";
+  const links = [];
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+    const href = `..${categoryPageHref(category, pageNumber)}`;
+    const label = `${pageNumber}`;
+    links.push(
+      pageNumber === currentPage
+        ? `<span aria-current="page">${label}</span>`
+        : `<a href="${href}" data-keep-lang>${label}</a>`,
+    );
+  }
+  return `<nav class="seo-pagination" aria-label="Catalog pagination">
+    <span><span data-lang-content="uk">Сторінка ${currentPage} з ${totalPages}</span><span data-lang-content="ru" hidden>Страница ${currentPage} из ${totalPages}</span></span>
+    ${links.join("")}
+  </nav>`;
 }
 
 function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, descriptionRu = description, lang = "uk") {
@@ -144,42 +170,53 @@ const productUrls = [];
 
 for (const category of data.categories.filter((item) => item.count > 0)) {
   const products = data.products.filter((product) => product.categorySlug === category.slug);
-  const visibleProducts = products.slice(0, categoryPreviewLimit);
-  const rows = visibleProducts
-    .map((product) => `<tr>
-      <td><a href="../products/${slugProduct(product)}"><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></a><small>${esc(product.sku)}</small></td>
-      <td>${esc(product.sku)}</td>
-      <td>${esc(product.qty)}</td>
-      <td>${esc(product.price)} UAH</td>
-    </tr>`)
-    .join("");
-  const overflowNote =
-    products.length > categoryPreviewLimit
-      ? `<p class="seo-note"><span data-lang-content="uk">Показано перші ${categoryPreviewLimit} позицій із ${products.length}. Повний асортимент доступний у каталозі з пошуком за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны первые ${categoryPreviewLimit} позиций из ${products.length}. Полный ассортимент доступен в каталоге с поиском по названию, коду, диаметру ф / Ø и размеру.</span></p>`
-      : "";
+  const totalPages = Math.max(1, Math.ceil(products.length / categoryPageSize));
+  const categoryLastmod = products.reduce((date, product) => {
+    const productDate = lastmod(product.updatedAt);
+    return productDate > date ? productDate : date;
+  }, contentLastmod);
 
-  const title = `${category.ua} / ${category.ru} купити в Україні | FLAKS`;
-  const description = `${category.ua}: ${products.length} позицій зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
-  const titleRu = `${category.ru} купить в Украине | FLAKS`;
-  const descriptionRu = `${category.ru}: ${products.length} позиций со склада. Цены в гривне без НДС, заявки через email или телефон.`;
-  const body = `<section class="seo-hero">
-      <p class="eyebrow"><span data-lang-content="uk">Категорія інструменту</span><span data-lang-content="ru" hidden>Категория инструмента</span></p>
-      <h1><span data-lang-content="uk">${esc(category.ua)}</span><span data-lang-content="ru" hidden>${esc(category.ru)}</span></h1>
-      <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
-    </section>
-    <section class="seo-table-wrap">
-      ${overflowNote}
-      <table>
-        <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>`;
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+    const pageProducts = products.slice((pageNumber - 1) * categoryPageSize, pageNumber * categoryPageSize);
+    const rows = pageProducts
+      .map((product) => `<tr>
+        <td><a href="../products/${slugProduct(product)}"><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></a><small>${esc(product.sku)}</small></td>
+        <td>${esc(product.sku)}</td>
+        <td>${esc(product.qty)}</td>
+        <td>${esc(product.price)} UAH</td>
+      </tr>`)
+      .join("");
+    const rangeStart = (pageNumber - 1) * categoryPageSize + 1;
+    const rangeEnd = Math.min(pageNumber * categoryPageSize, products.length);
+    const pageSuffixUk = pageNumber > 1 ? `, сторінка ${pageNumber}` : "";
+    const pageSuffixRu = pageNumber > 1 ? `, страница ${pageNumber}` : "";
 
-  const categoryUrl = `${siteUrl}/catalog/${category.slug}.html`;
-  await fs.writeFile(path.join(categoryDir, `${category.slug}.html`), page(title, description, body, categoryJsonLd(category, products), categoryUrl, titleRu, descriptionRu), "utf8");
-  categoryUrls.push({ loc: `${siteUrl}/catalog/${category.slug}.html`, priority: "0.8" });
+    const title = `${category.ua} / ${category.ru} купити в Україні${pageSuffixUk} | FLAKS`;
+    const description = `${category.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
+    const titleRu = `${category.ru} купить в Украине${pageSuffixRu} | FLAKS`;
+    const descriptionRu = `${category.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
+    const body = `<section class="seo-hero">
+        <p class="eyebrow"><span data-lang-content="uk">Категорія інструменту</span><span data-lang-content="ru" hidden>Категория инструмента</span></p>
+        <h1><span data-lang-content="uk">${esc(category.ua)}</span><span data-lang-content="ru" hidden>${esc(category.ru)}</span></h1>
+        <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
+      </section>
+      ${pagination(category, pageNumber, totalPages)}
+      <section class="seo-table-wrap">
+        <p class="seo-note"><span data-lang-content="uk">Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.</span></p>
+        <table>
+          <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>
+      ${pagination(category, pageNumber, totalPages)}`;
+
+    const href = categoryPageHref(category, pageNumber);
+    const categoryUrl = `${siteUrl}${href}`;
+    const fileName = pageNumber === 1 ? `${category.slug}.html` : `${category.slug}-page-${pageNumber}.html`;
+    await fs.writeFile(path.join(categoryDir, fileName), page(title, description, body, categoryJsonLd(category, pageProducts), categoryUrl, titleRu, descriptionRu), "utf8");
+    categoryUrls.push({ loc: categoryUrl, priority: pageNumber === 1 ? "0.8" : "0.55", lastmod: categoryLastmod });
+  }
 }
-
 for (const product of data.products) {
   const title = `${product.nameUa} купити | FLAKS`;
   const description = `${product.nameUa}. ${product.nameRu}. Ціна ${product.price} UAH без ПДВ, наявність ${product.qty} шт.`;
@@ -203,14 +240,14 @@ for (const product of data.products) {
 
   const productUrl = `${siteUrl}/products/${slugProduct(product)}`;
   await fs.writeFile(path.join(productDir, slugProduct(product)), page(title, description, body, productJsonLd(product), productUrl, titleRu, descriptionRu), "utf8");
-  productUrls.push({ loc: productUrl, priority: "0.6" });
+  productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
 }
 
 function sitemapUrlset(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
-  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${contentLastmod}</lastmod><priority>${url.priority}</priority></url>`)
+  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${lastmod(url.lastmod)}</lastmod><priority>${url.priority}</priority></url>`)
   .join("\n")}
 </urlset>
 `;
