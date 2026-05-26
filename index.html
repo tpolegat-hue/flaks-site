@@ -29,54 +29,56 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "FLAKS",
-        "email": "tpolegat@gmail.com",
-        "telephone": "+380675453115",
-        "url": "https://www.flaks.com.ua"
-      }
-    </script>
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "FLAKS",
-        "url": "https://www.flaks.com.ua",
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": "https://www.flaks.com.ua/?q={search_term_string}",
-          "query-input": "required name=search_term_string"
-        }
-      }
-    </script>
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
+        "@graph": [
           {
-            "@type": "Question",
-            "name": "Чи відправляє FLAKS інструмент по Україні?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Так, головний офіс FLAKS знаходиться у Харкові, а інструмент відправляється по всій Україні."
+            "@type": "Organization",
+            "@id": "https://www.flaks.com.ua/#organization",
+            "name": "FLAKS",
+            "email": "tpolegat@gmail.com",
+            "telephone": "+380675453115",
+            "url": "https://www.flaks.com.ua"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.flaks.com.ua/#website",
+            "name": "FLAKS",
+            "url": "https://www.flaks.com.ua",
+            "publisher": { "@id": "https://www.flaks.com.ua/#organization" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.flaks.com.ua/?q={search_term_string}",
+              "query-input": "required name=search_term_string"
             }
           },
           {
-            "@type": "Question",
-            "name": "Чи допомагає FLAKS підібрати інструмент під виробничу задачу?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Так, FLAKS консультує щодо підбору металорізального інструменту, режимів різання, врізання та технологічного використання."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Чи можна замовити оптову поставку?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Так, FLAKS приймає оптові заявки та може запропонувати суттєві знижки для великих і регулярних замовлень."
-            }
+            "@type": "FAQPage",
+            "@id": "https://www.flaks.com.ua/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Чи відправляє FLAKS інструмент по Україні?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Так, головний офіс FLAKS знаходиться у Харкові, а інструмент відправляється по всій Україні."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Чи допомагає FLAKS підібрати інструмент під виробничу задачу?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Так, FLAKS консультує щодо підбору металорізального інструменту, режимів різання, врізання та технологічного використання."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Чи можна замовити оптову поставку?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Так, FLAKS приймає оптові заявки та може запропонувати суттєві знижки для великих і регулярних замовлень."
+                }
+              }
+            ]
           }
         ]
       }
@@ -297,7 +299,7 @@
       <span class="developer-credit">Розробка / разработка: <a href="https://github.com/Flumos1" rel="author noopener" target="_blank">@Flumos</a></span>
     </footer>
 
-    <script src="data.js"></script>
+    <script src="data.28be6dd5305d.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

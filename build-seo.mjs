@@ -1,11 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const siteUrl = (globalThis.process?.env?.SITE_URL || "https://www.flaks.com.ua").replace(/\/$/, "");
 const dataText = await fs.readFile(path.join(root, "data.js"), "utf8");
 const data = JSON.parse(dataText.replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, "").replace(/;\s*$/, ""));
+const dataHash = crypto.createHash("sha256").update(dataText).digest("hex").slice(0, 12);
+const versionedDataFile = `data.${dataHash}.js`;
 
 const productDir = path.join(root, "products");
 const categoryDir = path.join(root, "catalog");
@@ -13,6 +16,29 @@ const categoryPageSize = 120;
 const contentLastmod = String(data.priceUpdatedAt || data.generatedAt || "2026-05-26").slice(0, 10);
 await fs.mkdir(productDir, { recursive: true });
 await fs.mkdir(categoryDir, { recursive: true });
+
+async function writeBatched(items, writer, batchSize = 150) {
+  for (let index = 0; index < items.length; index += batchSize) {
+    await Promise.all(items.slice(index, index + batchSize).map(writer));
+  }
+}
+
+async function refreshVersionedDataFile() {
+  for (const entry of await fs.readdir(root, { withFileTypes: true })) {
+    if (entry.isFile() && /^data\.[a-f0-9]{12}\.js$/.test(entry.name) && entry.name !== versionedDataFile) {
+      await fs.unlink(path.join(root, entry.name));
+    }
+  }
+  await fs.writeFile(path.join(root, versionedDataFile), dataText, "utf8");
+  const indexPath = path.join(root, "index.html");
+  const indexHtml = await fs.readFile(indexPath, "utf8");
+  const nextHtml = indexHtml.replace(/<script src="data(?:\.[a-f0-9]{12})?\.js"><\/script>/, `<script src="${versionedDataFile}"></script>`);
+  if (nextHtml !== indexHtml) {
+    await fs.writeFile(indexPath, nextHtml, "utf8");
+  }
+}
+
+await refreshVersionedDataFile();
 
 for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
   if (entry.isFile() && entry.name.endsWith(".html")) {
@@ -167,6 +193,7 @@ const pageUrls = [
 ];
 const categoryUrls = [];
 const productUrls = [];
+const categoryPageWrites = [];
 
 for (const category of data.categories.filter((item) => item.count > 0)) {
   const products = data.products.filter((product) => product.categorySlug === category.slug);
@@ -213,10 +240,18 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const href = categoryPageHref(category, pageNumber);
     const categoryUrl = `${siteUrl}${href}`;
     const fileName = pageNumber === 1 ? `${category.slug}.html` : `${category.slug}-page-${pageNumber}.html`;
-    await fs.writeFile(path.join(categoryDir, fileName), page(title, description, body, categoryJsonLd(category, pageProducts), categoryUrl, titleRu, descriptionRu), "utf8");
+    categoryPageWrites.push({
+      fileName,
+      html: page(title, description, body, categoryJsonLd(category, pageProducts), categoryUrl, titleRu, descriptionRu),
+    });
     categoryUrls.push({ loc: categoryUrl, priority: pageNumber === 1 ? "0.8" : "0.55", lastmod: categoryLastmod });
   }
 }
+
+await writeBatched(categoryPageWrites, ({ fileName, html }) => fs.writeFile(path.join(categoryDir, fileName), html, "utf8"), 50);
+
+const productPageWrites = [];
+
 for (const product of data.products) {
   const title = `${product.nameUa} купити | FLAKS`;
   const description = `${product.nameUa}. ${product.nameRu}. Ціна ${product.price} UAH без ПДВ, наявність ${product.qty} шт.`;
@@ -239,9 +274,14 @@ for (const product of data.products) {
     </section>`;
 
   const productUrl = `${siteUrl}/products/${slugProduct(product)}`;
-  await fs.writeFile(path.join(productDir, slugProduct(product)), page(title, description, body, productJsonLd(product), productUrl, titleRu, descriptionRu), "utf8");
+  productPageWrites.push({
+    fileName: slugProduct(product),
+    html: page(title, description, body, productJsonLd(product), productUrl, titleRu, descriptionRu),
+  });
   productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
 }
+
+await writeBatched(productPageWrites, ({ fileName, html }) => fs.writeFile(path.join(productDir, fileName), html, "utf8"));
 
 function sitemapUrlset(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
