@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const siteUrl = (globalThis.process?.env?.SITE_URL || "https://flaks.com.ua").replace(/\/$/, "");
+const siteUrl = (globalThis.process?.env?.SITE_URL || "https://www.flaks.com.ua").replace(/\/$/, "");
 const dataText = await fs.readFile(path.join(root, "data.js"), "utf8");
 const data = JSON.parse(dataText.replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, "").replace(/;\s*$/, ""));
 

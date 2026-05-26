@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://flaks.com.ua/sitemap.xml
+Sitemap: https://www.flaks.com.ua/sitemap.xml
