@@ -342,6 +342,66 @@ h1 {
   padding: 28px clamp(16px, 4vw, 48px) 4px;
 }
 
+.popular-searches,
+.faq-section {
+  padding: 28px clamp(16px, 4vw, 48px) 4px;
+}
+
+.popular-searches {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.35fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.search-chips a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.search-chips a:hover {
+  border-color: rgba(112, 189, 240, 0.66);
+  color: #70bdf0;
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.faq-grid details {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.faq-grid summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.faq-grid p {
+  color: #c5d0da;
+}
+
 .category-index-head {
   display: flex;
   align-items: end;
@@ -819,6 +879,10 @@ td {
   .results-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .popular-searches {
+    grid-template-columns: 1fr;
   }
 
   .category-index-head {

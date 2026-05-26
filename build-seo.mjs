@@ -116,6 +116,8 @@ function categoryJsonLd(category, products) {
 const urls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
+  { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
+  { loc: `${siteUrl}/contacts.html`, priority: "0.7" },
   { loc: `${siteUrl}/articles/`, priority: "0.8" },
   { loc: `${siteUrl}/articles/yak-pidibraty-metalorizalnyi-instrument.html`, priority: "0.7" },
 ];

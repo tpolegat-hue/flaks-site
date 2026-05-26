@@ -49,6 +49,38 @@
         }
       }
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Чи відправляє FLAKS інструмент по Україні?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Так, головний офіс FLAKS знаходиться у Харкові, а інструмент відправляється по всій Україні."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Чи допомагає FLAKS підібрати інструмент під виробничу задачу?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Так, FLAKS консультує щодо підбору металорізального інструменту, режимів різання, врізання та технологічного використання."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Чи можна замовити оптову поставку?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Так, FLAKS приймає оптові заявки та може запропонувати суттєві знижки для великих і регулярних замовлень."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <header class="topbar">
@@ -64,6 +96,8 @@
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
         <a class="contact-link" href="about.html" data-i18n="aboutNav">Про компанію</a>
+        <a class="contact-link" href="delivery.html" data-i18n="deliveryNav">Доставка</a>
+        <a class="contact-link" href="contacts.html" data-i18n="contactsNav">Контакти</a>
         <a class="contact-link" href="articles/" data-i18n="articlesNav">Статті</a>
         <div class="lang-switch" role="group" aria-label="Language">
           <button class="active" type="button" data-lang="uk">UA</button>
@@ -133,6 +167,23 @@
           <h2 id="categoryIndexTitle" data-i18n="categoryIndexTitle">Швидкий перехід до розділів</h2>
         </div>
         <div class="category-links" id="categoryLinks"></div>
+      </section>
+
+      <section class="popular-searches" aria-labelledby="popularSearchTitle">
+        <div>
+          <p class="eyebrow" data-i18n="popularSearches">Популярні запити</p>
+          <h2 id="popularSearchTitle" data-i18n="popularSearchTitle">Швидко знайти інструмент</h2>
+        </div>
+        <div class="search-chips">
+          <a href="?q=фреза%20Р6М5#catalog">Фреза Р6М5</a>
+          <a href="?q=сверло%20к%2Fх#catalog">Сверло к/х</a>
+          <a href="?q=метчик%20М10#catalog">Метчик М10</a>
+          <a href="?q=плашка%20М#catalog">Плашка М</a>
+          <a href="?q=развертка#catalog">Развертка</a>
+          <a href="?q=калибр#catalog">Калибр</a>
+          <a href="?q=зенкер#catalog">Зенкер</a>
+          <a href="?q=ф10%20Р6М5#catalog">Ф10 Р6М5</a>
+        </div>
       </section>
 
       <section class="catalog-shell" id="catalog">
@@ -214,12 +265,33 @@
           </div>
         </section>
       </section>
+
+      <section class="faq-section" aria-labelledby="faqTitle">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faqTitle" data-i18n="faqTitle">Питання перед замовленням</h2>
+        <div class="faq-grid">
+          <details open>
+            <summary data-i18n="faqDeliveryQ">Чи відправляєте по Україні?</summary>
+            <p data-i18n="faqDeliveryA">Так. Головний офіс у Харкові, відправляємо інструмент по всій Україні зручними службами доставки.</p>
+          </details>
+          <details>
+            <summary data-i18n="faqSelectionQ">Чи допоможете з підбором?</summary>
+            <p data-i18n="faqSelectionA">Так. Допомагаємо підібрати фрези, свердла, мітчики, плашки, розгортки, калібри та режими різання під задачу.</p>
+          </details>
+          <details>
+            <summary data-i18n="faqWholesaleQ">Чи є оптові знижки?</summary>
+            <p data-i18n="faqWholesaleA">Так. Приймаємо оптові заявки та можемо запропонувати суттєві знижки для великих і регулярних поставок.</p>
+          </details>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
       <strong>FLAKS</strong>
       <span data-i18n="footerText">Металообробний інструмент з наявності. Ціни в гривні без ПДВ.</span>
       <a href="about.html" data-i18n="aboutNav">Про компанію</a>
+      <a href="delivery.html" data-i18n="deliveryNav">Доставка</a>
+      <a href="contacts.html" data-i18n="contactsNav">Контакти</a>
       <a href="articles/" data-i18n="articlesNav">Статті</a>
       <span>+380 67 545 31 15 · tpolegat@gmail.com</span>
     </footer>
