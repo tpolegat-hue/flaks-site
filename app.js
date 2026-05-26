@@ -1,4 +1,6 @@
 const data = window.FLAKS_DATA;
+const productDiameterCache = new WeakMap();
+const productSearchTextCache = new WeakMap();
 
 const i18n = {
   uk: {
@@ -255,32 +257,36 @@ function diameterQueries(value) {
 }
 
 function productDiameters(product) {
-  if (!product._diameters) {
+  if (!productDiameterCache.has(product)) {
     const source = [product.nameRu, product.nameUa, product.sectionRu, product.sectionUa].join(" ");
-    product._diameters = [...source.matchAll(/(?:ф|ø|Ø|⌀)\.?\s*([0-9]+(?:[.,][0-9]+)?)/gi)]
+    const diameters = [...source.matchAll(/(?:ф|ø|Ø|⌀)\.?\s*([0-9]+(?:[.,][0-9]+)?)/gi)]
       .map((match) => Number(match[1].replace(",", ".")))
       .filter((number) => Number.isFinite(number));
+    productDiameterCache.set(product, diameters);
   }
 
-  return product._diameters;
+  return productDiameterCache.get(product);
 }
 
 function productSearchText(product) {
-  if (!product._searchText) {
-    product._searchText = normalizeSearchText(
-      [
-        product.sku,
-        product.nameRu,
-        product.nameUa,
-        product.categoryRu,
-        product.categoryUa,
-        product.sectionRu,
-        product.sectionUa,
-      ].join(" "),
+  if (!productSearchTextCache.has(product)) {
+    productSearchTextCache.set(
+      product,
+      normalizeSearchText(
+        [
+          product.sku,
+          product.nameRu,
+          product.nameUa,
+          product.categoryRu,
+          product.categoryUa,
+          product.sectionRu,
+          product.sectionUa,
+        ].join(" "),
+      ),
     );
   }
 
-  return product._searchText;
+  return productSearchTextCache.get(product);
 }
 
 function diameterMatches(product, diameters) {
