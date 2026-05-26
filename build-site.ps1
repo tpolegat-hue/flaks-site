@@ -150,14 +150,27 @@ function Get-CellValue($cell, $sharedStrings) {
 }
 
 function Slugify([string]$text) {
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes((Normalize-Text $text).ToLowerInvariant())
-  $sha = [System.Security.Cryptography.SHA1]::Create()
-  try {
-    $hash = ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString("x2") }) -join ""
-    return "cat-" + $hash.Substring(0, 12)
-  } finally {
-    $sha.Dispose()
+  $normalized = (Normalize-Text $text).ToLowerInvariant()
+  $map = @{
+    "а"="a"; "б"="b"; "в"="v"; "г"="g"; "ґ"="g"; "д"="d"; "е"="e"; "ё"="e"; "є"="ye";
+    "ж"="zh"; "з"="z"; "и"="i"; "і"="i"; "ї"="yi"; "й"="y"; "к"="k"; "л"="l"; "м"="m";
+    "н"="n"; "о"="o"; "п"="p"; "р"="r"; "с"="s"; "т"="t"; "у"="u"; "ф"="f"; "х"="kh";
+    "ц"="ts"; "ч"="ch"; "ш"="sh"; "щ"="shch"; "ъ"=""; "ы"="y"; "ь"=""; "э"="e"; "ю"="yu"; "я"="ya"
   }
+  $builder = [System.Text.StringBuilder]::new()
+  foreach ($char in $normalized.ToCharArray()) {
+    $s = [string]$char
+    if ($map.ContainsKey($s)) {
+      [void]$builder.Append($map[$s])
+    } elseif ($s -match "[a-z0-9]") {
+      [void]$builder.Append($s)
+    } else {
+      [void]$builder.Append("-")
+    }
+  }
+  $slug = [regex]::Replace($builder.ToString(), "-+", "-").Trim("-")
+  if (-not $slug) { return "category" }
+  return $slug
 }
 
 $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $ExcelPath))
@@ -181,6 +194,7 @@ try {
 
   $products = [System.Collections.Generic.List[object]]::new()
   $categories = [System.Collections.Generic.List[object]]::new()
+  $usedSlugs = @{}
   $id = 1
 
   foreach ($sheet in $workbook.workbook.sheets.sheet) {
@@ -192,7 +206,14 @@ try {
 
     $sheetXml = Load-Xml (Read-ZipText $zip $sheetPath)
     $currentSection = ""
-    $catSlug = Slugify $sheetName
+    $slugBase = Slugify $sheetName
+    $catSlug = $slugBase
+    $slugIndex = 2
+    while ($usedSlugs.ContainsKey($catSlug)) {
+      $catSlug = "$slugBase-$slugIndex"
+      $slugIndex++
+    }
+    $usedSlugs[$catSlug] = $true
     $categoryCountBefore = $products.Count
 
     foreach ($row in $sheetXml.GetElementsByTagName("row")) {

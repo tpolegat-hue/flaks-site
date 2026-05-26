@@ -33,12 +33,39 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=3600"
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
         }
       ]
     },
     {
       "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap-pages.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap-categories.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap-products.xml",
       "headers": [
         {
           "key": "Content-Type",
@@ -54,6 +81,118 @@
           "value": "text/plain; charset=utf-8"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/catalog/cat-035603e0f5da.html",
+      "destination": "/catalog/sverla-kkh-kitay.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-24bf0de7c4a1.html",
+      "destination": "/catalog/sverla-kkh.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-32819cf28b73.html",
+      "destination": "/catalog/sverla-tskh-levye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-577656a36c7d.html",
+      "destination": "/catalog/frezy-kontsevye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-71379ebb8454.html",
+      "destination": "/catalog/metchiki-gaechnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-72d72b3a89c8.html",
+      "destination": "/catalog/frezy-diskovye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-7d07bc7c7921.html",
+      "destination": "/catalog/metchiki-trapetsiya-i-dr.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-7f184ba7701e.html",
+      "destination": "/catalog/sverla-tskh-srednie.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-860896643c9c.html",
+      "destination": "/catalog/sverla-tskh-dlinnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-88b19bb0384d.html",
+      "destination": "/catalog/metchiki-levye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-88d270baf08e.html",
+      "destination": "/catalog/sverla-tsentrovochnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-8ec20f2f3db4.html",
+      "destination": "/catalog/metchiki-mr-metricheskie-pravye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-8fd982054610.html",
+      "destination": "/catalog/frezy-tortsevye-i-drugoe.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-9be1ed0fbd29.html",
+      "destination": "/catalog/kalibry.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-9cc557494138.html",
+      "destination": "/catalog/metchiki-ruchnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-a8722d2cbdae.html",
+      "destination": "/catalog/plashki.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-bc867c038964.html",
+      "destination": "/catalog/frezy-chervyachnye-dolbyaki-t-obr.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-c0c8100b78f3.html",
+      "destination": "/catalog/sverla-kkh-tverdosplavnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-c8f933bc78ce.html",
+      "destination": "/catalog/metchiki-mr-cherez-shag.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-cad077a3956b.html",
+      "destination": "/catalog/metchiki-g-tr-k-rc-ktr.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-ce00be543dca.html",
+      "destination": "/catalog/sverla-tverdosplavnye.html",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/cat-f63d84d131a3.html",
+      "destination": "/catalog/razvertki-zenkera-zenkovki.html",
+      "permanent": true
     }
   ]
 }

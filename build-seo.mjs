@@ -9,8 +9,16 @@ const data = JSON.parse(dataText.replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, ""
 
 const productDir = path.join(root, "products");
 const categoryDir = path.join(root, "catalog");
+const categoryPreviewLimit = 120;
+const contentLastmod = String(data.generatedAt || "2026-05-26").slice(0, 10);
 await fs.mkdir(productDir, { recursive: true });
 await fs.mkdir(categoryDir, { recursive: true });
+
+for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
+  if (entry.isFile() && entry.name.endsWith(".html")) {
+    await fs.unlink(path.join(categoryDir, entry.name));
+  }
+}
 
 function esc(value) {
   return String(value ?? "")
@@ -42,7 +50,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <meta property="og:description" content="${esc(description)}">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="FLAKS">
-    <meta property="og:image" content="${siteUrl}/assets/flaks-logo.png">
+    <meta property="og:image" content="${siteUrl}/assets/flaks-og.jpg">
     <link rel="canonical" href="${esc(canonicalUrl)}">
     <link rel="alternate" hreflang="uk-UA" href="${esc(canonicalUrl)}">
     <link rel="alternate" hreflang="ru-UA" href="${esc(canonicalUrl)}?lang=ru">
@@ -54,7 +62,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
   <body data-title-uk="${esc(title)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(description)}" data-description-ru="${esc(descriptionRu)}">
     <header class="topbar">
       <a class="brand" href="../index.html" data-keep-lang>
-        <span class="brand-mark"><img src="../assets/flaks-logo.png" alt=""></span>
+        <span class="brand-mark"><img src="../assets/icon-192.png" alt=""></span>
         <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
@@ -113,7 +121,7 @@ function categoryJsonLd(category, products) {
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: products.length,
-      itemListElement: products.slice(0, 500).map((product, index) => ({
+      itemListElement: products.slice(0, 100).map((product, index) => ({
         "@type": "ListItem",
         position: index + 1,
         url: `${siteUrl}/products/${slugProduct(product)}`,
@@ -123,7 +131,7 @@ function categoryJsonLd(category, products) {
   };
 }
 
-const urls = [
+const pageUrls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
   { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
@@ -131,10 +139,13 @@ const urls = [
   { loc: `${siteUrl}/articles`, priority: "0.8" },
   { loc: `${siteUrl}/articles/yak-pidibraty-metalorizalnyi-instrument.html`, priority: "0.7" },
 ];
+const categoryUrls = [];
+const productUrls = [];
 
 for (const category of data.categories.filter((item) => item.count > 0)) {
   const products = data.products.filter((product) => product.categorySlug === category.slug);
-  const rows = products
+  const visibleProducts = products.slice(0, categoryPreviewLimit);
+  const rows = visibleProducts
     .map((product) => `<tr>
       <td><a href="../products/${slugProduct(product)}"><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></a><small>${esc(product.sku)}</small></td>
       <td>${esc(product.sku)}</td>
@@ -142,6 +153,10 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       <td>${esc(product.price)} UAH</td>
     </tr>`)
     .join("");
+  const overflowNote =
+    products.length > categoryPreviewLimit
+      ? `<p class="seo-note"><span data-lang-content="uk">Показано перші ${categoryPreviewLimit} позицій із ${products.length}. Повний асортимент доступний у каталозі з пошуком за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны первые ${categoryPreviewLimit} позиций из ${products.length}. Полный ассортимент доступен в каталоге с поиском по названию, коду, диаметру ф / Ø и размеру.</span></p>`
+      : "";
 
   const title = `${category.ua} / ${category.ru} купити в Україні | FLAKS`;
   const description = `${category.ua}: ${products.length} позицій зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
@@ -153,6 +168,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
     </section>
     <section class="seo-table-wrap">
+      ${overflowNote}
       <table>
         <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -161,7 +177,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
 
   const categoryUrl = `${siteUrl}/catalog/${category.slug}.html`;
   await fs.writeFile(path.join(categoryDir, `${category.slug}.html`), page(title, description, body, categoryJsonLd(category, products), categoryUrl, titleRu, descriptionRu), "utf8");
-  urls.push({ loc: `${siteUrl}/catalog/${category.slug}.html`, priority: "0.8" });
+  categoryUrls.push({ loc: `${siteUrl}/catalog/${category.slug}.html`, priority: "0.8" });
 }
 
 for (const product of data.products) {
@@ -187,18 +203,31 @@ for (const product of data.products) {
 
   const productUrl = `${siteUrl}/products/${slugProduct(product)}`;
   await fs.writeFile(path.join(productDir, slugProduct(product)), page(title, description, body, productJsonLd(product), productUrl, titleRu, descriptionRu), "utf8");
-  urls.push({ loc: productUrl, priority: "0.6" });
+  productUrls.push({ loc: productUrl, priority: "0.6" });
 }
 
-const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+function sitemapUrlset(urls) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
-  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod><priority>${url.priority}</priority></url>`)
+  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${contentLastmod}</lastmod><priority>${url.priority}</priority></url>`)
   .join("\n")}
 </urlset>
 `;
+}
 
-await fs.writeFile(path.join(root, "sitemap.xml"), sitemap, "utf8");
+function sitemapIndex(files) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${files.map((file) => `  <sitemap><loc>${siteUrl}/${file}</loc><lastmod>${contentLastmod}</lastmod></sitemap>`).join("\n")}
+</sitemapindex>
+`;
+}
+
+await fs.writeFile(path.join(root, "sitemap-pages.xml"), sitemapUrlset(pageUrls), "utf8");
+await fs.writeFile(path.join(root, "sitemap-categories.xml"), sitemapUrlset(categoryUrls), "utf8");
+await fs.writeFile(path.join(root, "sitemap-products.xml"), sitemapUrlset(productUrls), "utf8");
+await fs.writeFile(path.join(root, "sitemap.xml"), sitemapIndex(["sitemap-pages.xml", "sitemap-categories.xml", "sitemap-products.xml"]), "utf8");
 await fs.writeFile(
   path.join(root, "robots.txt"),
   `User-agent: *
@@ -230,4 +259,4 @@ await fs.writeFile(
   "utf8",
 );
 
-console.log(`SEO generated: ${data.categories.length} categories, ${data.products.length} product pages, ${urls.length} sitemap URLs.`);
+console.log(`SEO generated: ${data.categories.length} categories, ${data.products.length} product pages, ${pageUrls.length + categoryUrls.length + productUrls.length} sitemap URLs.`);

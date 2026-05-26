@@ -768,6 +768,15 @@ td {
   box-shadow: var(--shadow);
 }
 
+.seo-note {
+  margin: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
 .seo-table-wrap a {
   color: var(--ink);
   font-weight: 800;
