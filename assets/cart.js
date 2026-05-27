@@ -74,6 +74,8 @@
   const money = new Intl.NumberFormat("uk-UA", { style: "currency", currency: "UAH", maximumFractionDigits: 2 });
 
   function lang() {
+    const pageLang = document.documentElement.lang;
+    if (pageLang === "ru" || pageLang === "uk") return pageLang;
     const params = new URLSearchParams(window.location.search);
     const queryLang = params.get("lang");
     if (queryLang === "ru" || queryLang === "uk") return queryLang;
@@ -187,15 +189,15 @@
       <aside class="cart-drawer" id="cartDrawer" aria-label="${escapeHtml(t("cartTitle"))}" hidden>
         <div class="cart-drawer-head">
           <div>
-            <p class="eyebrow">${escapeHtml(t("cart"))}</p>
-            <h2>${escapeHtml(t("cartTitle"))}</h2>
+            <p class="eyebrow" data-cart-label="cart">${escapeHtml(t("cart"))}</p>
+            <h2 data-cart-label="cartTitle">${escapeHtml(t("cartTitle"))}</h2>
           </div>
           <button class="icon-button" type="button" data-cart-close aria-label="Close">x</button>
         </div>
         <div class="cart-drawer-body" data-cart-drawer-body></div>
       </aside>
       <button class="cart-fab" type="button" data-cart-open aria-label="${escapeHtml(t("cart"))}">
-        <span>${escapeHtml(t("cart"))}</span>
+        <span data-cart-label="cart">${escapeHtml(t("cart"))}</span>
         <strong data-cart-count>0</strong>
       </button>`;
   }
@@ -278,7 +280,22 @@
     });
   }
 
+  function updateCartChrome() {
+    document.querySelectorAll('[data-cart-label="cart"]').forEach((node) => {
+      node.textContent = t("cart");
+    });
+    document.querySelectorAll('[data-cart-label="cartTitle"]').forEach((node) => {
+      node.textContent = t("cartTitle");
+    });
+    document.querySelectorAll("[data-cart-open]").forEach((node) => {
+      node.setAttribute("aria-label", t("cart"));
+    });
+    const drawer = document.querySelector("#cartDrawer");
+    if (drawer) drawer.setAttribute("aria-label", t("cartTitle"));
+  }
+
   function renderAll() {
+    updateCartChrome();
     decorateButtons();
     updateBadges();
     renderCartSurface(document.querySelector("[data-cart-drawer-body]"), "drawer");
@@ -398,6 +415,7 @@
     });
 
     window.addEventListener("flaks-cart-change", renderAll);
+    window.addEventListener("flaks-lang-change", renderAll);
     window.addEventListener("storage", renderAll);
   }
 

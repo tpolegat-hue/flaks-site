@@ -515,6 +515,7 @@ function setLang(lang) {
   translatePage();
   updateSearchUrl();
   render();
+  window.dispatchEvent(new CustomEvent("flaks-lang-change", { detail: { lang } }));
 }
 
 function setView(view) {

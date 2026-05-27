@@ -32,6 +32,8 @@
     document.querySelectorAll("a[data-keep-lang], .seo-table-wrap a").forEach((link) => {
       link.setAttribute("href", withLang(link.getAttribute("href"), lang));
     });
+
+    window.dispatchEvent(new CustomEvent("flaks-lang-change", { detail: { lang } }));
   }
 
   document.querySelectorAll("[data-lang]").forEach((button) => {
