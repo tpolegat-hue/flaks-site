@@ -548,7 +548,7 @@ h1 {
   justify-self: end;
   align-self: end;
   color: #8ed1ff;
-  font-size: clamp(24px, 3.2vw, 36px);
+  font-size: clamp(15px, 1.8vw, 22px);
   line-height: 0.95;
   letter-spacing: 0;
   text-align: right;
@@ -571,6 +571,10 @@ h1 {
   font-weight: 800;
   line-height: 1.35;
   letter-spacing: 0;
+}
+
+.trust-card-standards small {
+  margin-bottom: 0;
 }
 
 .category-index {
