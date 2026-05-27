@@ -1112,6 +1112,25 @@ td {
   color: var(--muted);
 }
 
+.cart-success {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid rgba(66, 190, 137, 0.52);
+  border-radius: 8px;
+  background: rgba(66, 190, 137, 0.12);
+  color: #c9f4df;
+}
+
+.cart-success strong {
+  color: #9be2bf;
+  font-size: 22px;
+}
+
+.cart-success p {
+  margin: 0;
+}
+
 .cart-quick-contact {
   display: flex;
   gap: 12px;

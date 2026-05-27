@@ -1,5 +1,6 @@
 (() => {
   const STORAGE_KEY = "flaks-cart";
+  const SUCCESS_KEY = "flaks-cart-success";
   const MIN_ORDER_TOTAL = 2000;
   const TELEPHONE = "+380675453115";
   const EMAIL = "tpolegat@gmail.com";
@@ -33,6 +34,7 @@
       submit: "Відправити заявку",
       sending: "Відправляємо...",
       sent: "Заявку відправлено. Ми зв'яжемося з вами найближчим часом.",
+      sentTitle: "Заявку відправлено",
       failed: "Не вдалося відправити заявку. Спробуйте ще раз або напишіть на пошту.",
       call: "Зателефонувати",
       write: "Написати email",
@@ -65,6 +67,7 @@
       submit: "Отправить заявку",
       sending: "Отправляем...",
       sent: "Заявка отправлена. Мы свяжемся с вами в ближайшее время.",
+      sentTitle: "Заявка отправлена",
       failed: "Не удалось отправить заявку. Попробуйте еще раз или напишите на почту.",
       call: "Позвонить",
       write: "Написать email",
@@ -93,6 +96,15 @@
     } catch {
       return [];
     }
+  }
+
+  function readSuccessMessage() {
+    return sessionStorage.getItem(SUCCESS_KEY) === "1";
+  }
+
+  function setSuccessMessage(active) {
+    if (active) sessionStorage.setItem(SUCCESS_KEY, "1");
+    else sessionStorage.removeItem(SUCCESS_KEY);
   }
 
   function writeCart(items) {
@@ -134,6 +146,7 @@
   function addItem(product) {
     const stock = Math.floor(toNumber(product.stock));
     if (stock <= 0) return;
+    setSuccessMessage(false);
 
     const items = readCart();
     const index = items.findIndex((item) => item.sku === product.sku);
@@ -248,6 +261,18 @@
   function renderCartSurface(target, mode = "drawer") {
     const items = readCart();
     if (!target) return;
+    if (readSuccessMessage() && !items.length) {
+      target.innerHTML = `<div class="cart-success">
+        <strong>${escapeHtml(t("sentTitle"))}</strong>
+        <p>${escapeHtml(t("sent"))}</p>
+      </div>
+      <div class="hero-actions">
+        <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
+        <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
+      </div>`;
+      return;
+    }
+
     if (!items.length) {
       target.innerHTML = `<p class="cart-empty">${escapeHtml(t("empty"))}</p>
         <div class="hero-actions">
@@ -354,8 +379,8 @@
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Order failed");
+      setSuccessMessage(true);
       writeCart([]);
-      status.textContent = t("sent");
       form.reset();
       renderAll();
       const pageStatus = document.querySelector("[data-cart-page-status]");
