@@ -373,6 +373,10 @@ function translatePage() {
     node.placeholder = t(node.dataset.i18nPlaceholder);
   });
 
+  document.querySelectorAll("[data-lang-content]").forEach((node) => {
+    node.hidden = node.dataset.langContent !== state.lang;
+  });
+
   document.querySelectorAll("[data-lang]").forEach((button) => {
     button.classList.toggle("active", button.dataset.lang === state.lang);
   });

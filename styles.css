@@ -36,6 +36,30 @@ body {
   }
 }
 
+@keyframes heroCopyIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroVisualIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes cartPulse {
   0%,
   100% {
@@ -260,6 +284,7 @@ select {
 
 .hero-copy {
   max-width: 760px;
+  animation: heroCopyIn 640ms ease both;
 }
 
 .eyebrow {
@@ -374,6 +399,7 @@ h1 {
   border-radius: 8px;
   background: #05090d;
   box-shadow: var(--shadow);
+  animation: heroVisualIn 760ms ease 120ms both;
 }
 
 .hero-visual img {
