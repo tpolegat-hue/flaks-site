@@ -63,6 +63,17 @@ function price(value) {
   return Number(value).toFixed(2);
 }
 
+function cartAttrs(product) {
+  return [
+    "data-cart-add",
+    `data-cart-sku="${esc(product.sku)}"`,
+    `data-cart-name-ua="${esc(product.nameUa)}"`,
+    `data-cart-name-ru="${esc(product.nameRu)}"`,
+    `data-cart-price="${esc(product.price)}"`,
+    `data-cart-stock="${esc(product.qty)}"`,
+  ].join(" ");
+}
+
 function lastmod(value) {
   return String(value || contentLastmod).slice(0, 10);
 }
@@ -125,6 +136,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
         <a class="contact-link" href="../articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
+        <button class="cart-nav-button" type="button" data-cart-open><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span><strong data-cart-count>0</strong></button>
         <div class="lang-switch" role="group" aria-label="Language">
           <button class="active" type="button" data-lang="uk">UA</button>
           <button type="button" data-lang="ru">RU</button>
@@ -140,6 +152,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
       <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Повернутися до каталогу</span><span data-lang-content="ru" hidden>Вернуться в каталог</span></a>
     </footer>
     <script src="../assets/seo-lang-switch.js"></script>
+    <script src="../assets/cart.js"></script>
   </body>
 </html>`;
 }
@@ -211,6 +224,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
         <td>${esc(product.sku)}</td>
         <td>${esc(product.qty)}</td>
         <td>${esc(product.price)} UAH</td>
+        <td><button class="cart-add-button" type="button" ${cartAttrs(product)}></button></td>
       </tr>`)
       .join("");
     const rangeStart = (pageNumber - 1) * categoryPageSize + 1;
@@ -231,7 +245,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       <section class="seo-table-wrap">
         <p class="seo-note"><span data-lang-content="uk">Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.</span></p>
         <table>
-          <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th></tr></thead>
+          <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th><th><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </section>
@@ -268,7 +282,7 @@ for (const product of data.products) {
         <span><span data-lang-content="uk">Код</span><span data-lang-content="ru" hidden>Код</span>: ${esc(product.sku)}</span>
       </div>
       <div class="hero-actions">
-        <a class="primary-button" href="mailto:tpolegat@gmail.com?subject=${encodeURIComponent(`Запит FLAKS: ${product.sku}`)}"><span data-lang-content="uk">Надіслати заявку</span><span data-lang-content="ru" hidden>Отправить заявку</span></a>
+        <button class="cart-add-button" type="button" ${cartAttrs(product)}></button>
         <a class="secondary-button" href="tel:+380675453115"><span data-lang-content="uk">Зателефонувати</span><span data-lang-content="ru" hidden>Позвонить</span></a>
       </div>
     </section>`;

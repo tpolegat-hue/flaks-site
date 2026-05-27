@@ -1,0 +1,415 @@
+(() => {
+  const STORAGE_KEY = "flaks-cart";
+  const MIN_ORDER_TOTAL = 2000;
+  const TELEPHONE = "+380675453115";
+  const EMAIL = "tpolegat@gmail.com";
+
+  const texts = {
+    uk: {
+      cart: "Кошик",
+      cartTitle: "Кошик-заявка",
+      empty: "Кошик порожній. Додайте інструмент із каталогу.",
+      add: "Додати в кошик",
+      added: "Додано",
+      checkout: "Оформити заявку",
+      continue: "Продовжити вибір",
+      clear: "Очистити",
+      remove: "Видалити",
+      total: "Разом",
+      minimum: "Мінімальна сума замовлення 2 000 грн.",
+      minimumLeft: "До мінімального замовлення залишилось",
+      qty: "Кількість",
+      stock: "Наявність",
+      price: "Ціна без ПДВ",
+      sku: "Код",
+      name: "Ім'я",
+      phone: "Телефон",
+      email: "Email",
+      city: "Місто",
+      comment: "Коментар",
+      phoneRequired: "Вкажіть телефон.",
+      stockLimit: "Не можна замовити більше, ніж є на складі.",
+      minOrderBlock: "Заявку можна відправити від 2 000 грн.",
+      submit: "Відправити заявку",
+      sending: "Відправляємо...",
+      sent: "Заявку відправлено. Ми зв'яжемося з вами найближчим часом.",
+      failed: "Не вдалося відправити заявку. Спробуйте ще раз або напишіть на пошту.",
+      call: "Зателефонувати",
+      write: "Написати email",
+    },
+    ru: {
+      cart: "Корзина",
+      cartTitle: "Корзина-заявка",
+      empty: "Корзина пустая. Добавьте инструмент из каталога.",
+      add: "Добавить в корзину",
+      added: "Добавлено",
+      checkout: "Оформить заявку",
+      continue: "Продолжить выбор",
+      clear: "Очистить",
+      remove: "Удалить",
+      total: "Итого",
+      minimum: "Минимальная сумма заказа 2 000 грн.",
+      minimumLeft: "До минимального заказа осталось",
+      qty: "Количество",
+      stock: "Наличие",
+      price: "Цена без НДС",
+      sku: "Код",
+      name: "Имя",
+      phone: "Телефон",
+      email: "Email",
+      city: "Город",
+      comment: "Комментарий",
+      phoneRequired: "Укажите телефон.",
+      stockLimit: "Нельзя заказать больше, чем есть на складе.",
+      minOrderBlock: "Заявку можно отправить от 2 000 грн.",
+      submit: "Отправить заявку",
+      sending: "Отправляем...",
+      sent: "Заявка отправлена. Мы свяжемся с вами в ближайшее время.",
+      failed: "Не удалось отправить заявку. Попробуйте еще раз или напишите на почту.",
+      call: "Позвонить",
+      write: "Написать email",
+    },
+  };
+
+  const money = new Intl.NumberFormat("uk-UA", { style: "currency", currency: "UAH", maximumFractionDigits: 2 });
+
+  function lang() {
+    const params = new URLSearchParams(window.location.search);
+    const queryLang = params.get("lang");
+    if (queryLang === "ru" || queryLang === "uk") return queryLang;
+    return localStorage.getItem("flaks-lang") === "ru" ? "ru" : "uk";
+  }
+
+  function t(key) {
+    return texts[lang()][key] || key;
+  }
+
+  function readCart() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeCart(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent("flaks-cart-change"));
+  }
+
+  function toNumber(value) {
+    const number = Number(String(value || "0").replace(",", "."));
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function cleanQty(value, stock) {
+    const requested = Math.max(1, Math.floor(toNumber(value)));
+    return Math.min(requested, Math.max(0, Math.floor(toNumber(stock))));
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function itemName(item) {
+    return lang() === "uk" ? item.nameUa || item.nameRu : item.nameRu || item.nameUa;
+  }
+
+  function cartTotal(items = readCart()) {
+    return items.reduce((sum, item) => sum + toNumber(item.price) * toNumber(item.requestQty), 0);
+  }
+
+  function cartCount(items = readCart()) {
+    return items.reduce((sum, item) => sum + toNumber(item.requestQty), 0);
+  }
+
+  function addItem(product) {
+    const stock = Math.floor(toNumber(product.stock));
+    if (stock <= 0) return;
+
+    const items = readCart();
+    const index = items.findIndex((item) => item.sku === product.sku);
+    if (index >= 0) {
+      items[index].requestQty = cleanQty(toNumber(items[index].requestQty) + 1, items[index].stock);
+    } else {
+      items.push({
+        sku: product.sku,
+        nameUa: product.nameUa,
+        nameRu: product.nameRu,
+        price: toNumber(product.price),
+        stock,
+        requestQty: 1,
+      });
+    }
+    writeCart(items);
+  }
+
+  function updateQty(sku, qty) {
+    const items = readCart();
+    const item = items.find((entry) => entry.sku === sku);
+    if (!item) return;
+    item.requestQty = cleanQty(qty, item.stock);
+    writeCart(items);
+  }
+
+  function removeItem(sku) {
+    writeCart(readCart().filter((item) => item.sku !== sku));
+  }
+
+  function productFromButton(button) {
+    return {
+      sku: button.dataset.cartSku,
+      nameUa: button.dataset.cartNameUa,
+      nameRu: button.dataset.cartNameRu,
+      price: button.dataset.cartPrice,
+      stock: button.dataset.cartStock,
+    };
+  }
+
+  function decorateButtons() {
+    const items = readCart();
+    document.querySelectorAll("[data-cart-add]").forEach((button) => {
+      const inCart = items.some((item) => item.sku === button.dataset.cartSku);
+      button.textContent = inCart ? t("added") : t("add");
+      button.classList.toggle("is-added", inCart);
+      button.disabled = toNumber(button.dataset.cartStock) <= 0;
+    });
+  }
+
+  function drawerHtml() {
+    return `<div class="cart-overlay" data-cart-close hidden></div>
+      <aside class="cart-drawer" id="cartDrawer" aria-label="${escapeHtml(t("cartTitle"))}" hidden>
+        <div class="cart-drawer-head">
+          <div>
+            <p class="eyebrow">${escapeHtml(t("cart"))}</p>
+            <h2>${escapeHtml(t("cartTitle"))}</h2>
+          </div>
+          <button class="icon-button" type="button" data-cart-close aria-label="Close">x</button>
+        </div>
+        <div class="cart-drawer-body" data-cart-drawer-body></div>
+      </aside>
+      <button class="cart-fab" type="button" data-cart-open aria-label="${escapeHtml(t("cart"))}">
+        <span>${escapeHtml(t("cart"))}</span>
+        <strong data-cart-count>0</strong>
+      </button>`;
+  }
+
+  function itemHtml(item) {
+    return `<article class="cart-item" data-cart-item="${escapeHtml(item.sku)}">
+      <div>
+        <strong>${escapeHtml(itemName(item))}</strong>
+        <small>${escapeHtml(t("sku"))}: ${escapeHtml(item.sku)} · ${escapeHtml(t("stock"))}: ${escapeHtml(item.stock)} шт.</small>
+        <small>${escapeHtml(t("price"))}: ${escapeHtml(money.format(toNumber(item.price)))}</small>
+      </div>
+      <div class="cart-item-controls">
+        <label>
+          <span>${escapeHtml(t("qty"))}</span>
+          <input type="number" min="1" max="${escapeHtml(item.stock)}" value="${escapeHtml(item.requestQty)}" data-cart-qty="${escapeHtml(item.sku)}">
+        </label>
+        <button type="button" class="secondary-button" data-cart-remove="${escapeHtml(item.sku)}">${escapeHtml(t("remove"))}</button>
+      </div>
+    </article>`;
+  }
+
+  function totalsHtml(items) {
+    const total = cartTotal(items);
+    const left = Math.max(0, MIN_ORDER_TOTAL - total);
+    const minimumClass = total >= MIN_ORDER_TOTAL ? "cart-minimum ok" : "cart-minimum";
+    return `<div class="cart-total">
+      <span>${escapeHtml(t("total"))}</span>
+      <strong>${escapeHtml(money.format(total))}</strong>
+    </div>
+    <p class="${minimumClass}">${escapeHtml(left > 0 ? `${t("minimum")} ${t("minimumLeft")}: ${money.format(left)}.` : t("minimum"))}</p>`;
+  }
+
+  function checkoutFormHtml(items) {
+    const disabled = items.length === 0 || cartTotal(items) < MIN_ORDER_TOTAL ? "disabled" : "";
+    return `<form class="cart-form" data-cart-form>
+      <div class="form-grid">
+        <label><span>${escapeHtml(t("name"))}</span><input name="name" autocomplete="name"></label>
+        <label><span>${escapeHtml(t("phone"))} *</span><input name="phone" autocomplete="tel" required></label>
+        <label><span>${escapeHtml(t("email"))}</span><input name="email" type="email" autocomplete="email"></label>
+        <label><span>${escapeHtml(t("city"))}</span><input name="city" autocomplete="address-level2"></label>
+      </div>
+      <label><span>${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
+      <button class="primary-button" type="submit" ${disabled}>${escapeHtml(t("submit"))}</button>
+      <p class="cart-status" data-cart-status>${cartTotal(items) < MIN_ORDER_TOTAL && items.length ? escapeHtml(t("minOrderBlock")) : ""}</p>
+    </form>`;
+  }
+
+  function renderCartSurface(target, mode = "drawer") {
+    const items = readCart();
+    if (!target) return;
+    if (!items.length) {
+      target.innerHTML = `<p class="cart-empty">${escapeHtml(t("empty"))}</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
+          <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
+        </div>`;
+      return;
+    }
+
+    target.innerHTML = `<div class="cart-list">${items.map(itemHtml).join("")}</div>
+      ${totalsHtml(items)}
+      <div class="hero-actions">
+        ${mode === "drawer" ? `<a class="primary-button" href="${cartPageHref()}">${escapeHtml(t("checkout"))}</a>` : ""}
+        <button class="secondary-button" type="button" data-cart-clear>${escapeHtml(t("clear"))}</button>
+      </div>
+      ${mode === "page" ? checkoutFormHtml(items) : ""}
+      <div class="cart-quick-contact">
+        <a href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
+        <a href="mailto:${EMAIL}">${escapeHtml(t("write"))}</a>
+      </div>`;
+  }
+
+  function cartPageHref() {
+    return lang() === "ru" ? "/cart.html?lang=ru" : "/cart.html";
+  }
+
+  function updateBadges() {
+    document.querySelectorAll("[data-cart-count]").forEach((node) => {
+      node.textContent = String(cartCount());
+    });
+  }
+
+  function renderAll() {
+    decorateButtons();
+    updateBadges();
+    renderCartSurface(document.querySelector("[data-cart-drawer-body]"), "drawer");
+    renderCartSurface(document.querySelector("[data-cart-page]"), "page");
+  }
+
+  function openDrawer() {
+    renderAll();
+    document.querySelector(".cart-overlay")?.removeAttribute("hidden");
+    document.querySelector(".cart-drawer")?.removeAttribute("hidden");
+    document.body.classList.add("cart-open");
+  }
+
+  function closeDrawer() {
+    document.querySelector(".cart-overlay")?.setAttribute("hidden", "");
+    document.querySelector(".cart-drawer")?.setAttribute("hidden", "");
+    document.body.classList.remove("cart-open");
+  }
+
+  async function submitOrder(form) {
+    const status = form.querySelector("[data-cart-status]");
+    const items = readCart();
+    const total = cartTotal(items);
+    const phone = new FormData(form).get("phone")?.toString().trim();
+
+    if (!phone) {
+      status.textContent = t("phoneRequired");
+      return;
+    }
+    if (total < MIN_ORDER_TOTAL) {
+      status.textContent = t("minOrderBlock");
+      return;
+    }
+
+    const formData = new FormData(form);
+    const payload = {
+      language: lang(),
+      customer: {
+        name: formData.get("name")?.toString().trim(),
+        phone,
+        email: formData.get("email")?.toString().trim(),
+        city: formData.get("city")?.toString().trim(),
+        comment: formData.get("comment")?.toString().trim(),
+      },
+      items,
+      total,
+    };
+
+    status.textContent = t("sending");
+    form.querySelector("button[type='submit']").disabled = true;
+
+    try {
+      const response = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error("Order failed");
+      writeCart([]);
+      status.textContent = t("sent");
+      form.reset();
+      renderAll();
+      const pageStatus = document.querySelector("[data-cart-page-status]");
+      if (pageStatus) pageStatus.textContent = t("sent");
+    } catch {
+      status.textContent = t("failed");
+      form.querySelector("button[type='submit']").disabled = false;
+    }
+  }
+
+  function bind() {
+    document.addEventListener("click", (event) => {
+      const addButton = event.target.closest("[data-cart-add]");
+      if (addButton) {
+        event.preventDefault();
+        addItem(productFromButton(addButton));
+        openDrawer();
+        return;
+      }
+
+      if (event.target.closest("[data-cart-open]")) {
+        event.preventDefault();
+        openDrawer();
+        return;
+      }
+
+      if (event.target.closest("[data-cart-close]")) {
+        event.preventDefault();
+        closeDrawer();
+        return;
+      }
+
+      const removeButton = event.target.closest("[data-cart-remove]");
+      if (removeButton) {
+        removeItem(removeButton.dataset.cartRemove);
+        return;
+      }
+
+      if (event.target.closest("[data-cart-clear]")) {
+        writeCart([]);
+      }
+    });
+
+    document.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-cart-qty]");
+      if (!input) return;
+      const max = toNumber(input.getAttribute("max"));
+      if (toNumber(input.value) > max) input.value = String(max);
+      updateQty(input.dataset.cartQty, input.value);
+    });
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target.closest("[data-cart-form]");
+      if (!form) return;
+      event.preventDefault();
+      submitOrder(form);
+    });
+
+    window.addEventListener("flaks-cart-change", renderAll);
+    window.addEventListener("storage", renderAll);
+  }
+
+  function init() {
+    document.body.insertAdjacentHTML("beforeend", drawerHtml());
+    bind();
+    renderAll();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

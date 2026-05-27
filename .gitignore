@@ -1,8 +1,12 @@
 .vercel/
 node_modules/
+.env
+.env.local
+.env.*.local
 server.*.log
 *.log
 flaks-*-screenshot.png
+flaks-*-check.png
 flaks-screenshot.png
 flaks-screenshot-*.png
 Thumbs.db

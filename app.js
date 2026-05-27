@@ -60,7 +60,7 @@ const i18n = {
     tableCategory: "Категорія",
     tableQty: "К-сть",
     tablePrice: "Ціна без ПДВ",
-    tableAction: "Заявка",
+    tableAction: "Кошик",
     request: "Запит",
     prev: "Назад",
     next: "Далі",
@@ -128,7 +128,7 @@ const i18n = {
     tableCategory: "Категория",
     tableQty: "Кол-во",
     tablePrice: "Цена без НДС",
-    tableAction: "Заявка",
+    tableAction: "Корзина",
     request: "Запрос",
     prev: "Назад",
     next: "Далее",
@@ -347,6 +347,17 @@ function productPageHref(product) {
   return `products/${product.sku.toLowerCase()}.html${suffix}`;
 }
 
+function cartButtonAttrs(product) {
+  return [
+    "data-cart-add",
+    `data-cart-sku="${escapeHtml(product.sku)}"`,
+    `data-cart-name-ua="${escapeHtml(product.nameUa)}"`,
+    `data-cart-name-ru="${escapeHtml(product.nameRu)}"`,
+    `data-cart-price="${escapeHtml(product.price)}"`,
+    `data-cart-stock="${escapeHtml(product.qty)}"`,
+  ].join(" ");
+}
+
 function translatePage() {
   els.html.lang = state.lang;
   document.title =
@@ -447,7 +458,7 @@ function renderRows(products) {
           <td>${escapeHtml(categoryName(product))}</td>
           <td><span class="qty-badge">${escapeHtml(formatQty(product.qty))}</span></td>
           <td class="price">${escapeHtml(formatPrice(product.price))}</td>
-          <td><a class="request-link" href="${requestHref(product)}">${escapeHtml(t("request"))}</a></td>
+          <td><button class="cart-add-button" type="button" ${cartButtonAttrs(product)}></button></td>
         </tr>
       `;
     })
@@ -474,7 +485,7 @@ function renderCards(products) {
             <span class="qty-badge">${escapeHtml(formatQty(product.qty))}</span>
             <strong class="price">${escapeHtml(formatPrice(product.price))}</strong>
           </div>
-          <a class="request-link" href="${requestHref(product)}">${escapeHtml(t("request"))}</a>
+          <button class="cart-add-button" type="button" ${cartButtonAttrs(product)}></button>
         </article>
       `;
     })
@@ -495,6 +506,7 @@ function render() {
 
   renderRows(pageItems);
   renderCards(pageItems);
+  window.dispatchEvent(new CustomEvent("flaks-cart-change"));
 }
 
 function setLang(lang) {
