@@ -26,6 +26,47 @@ body {
   line-height: 1.45;
 }
 
+@keyframes heroDrift {
+  0% {
+    transform: scale(1.01) translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: scale(1.045) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@keyframes cartPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  42% {
+    transform: scale(1.18);
+  }
+}
+
+@keyframes drawerIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 a {
   color: inherit;
 }
@@ -124,6 +165,18 @@ select {
   color: var(--ink);
   font-weight: 800;
   cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.cart-nav-button:hover {
+  border-color: rgba(112, 189, 240, 0.86);
+  background: rgba(22, 119, 184, 0.3);
+  box-shadow: 0 0 0 3px rgba(22, 119, 184, 0.14);
+  transform: translateY(-1px);
 }
 
 .cart-nav-button strong,
@@ -137,6 +190,10 @@ select {
   background: var(--accent);
   color: #fff;
   font-size: 12px;
+}
+
+.cart-count-pulse {
+  animation: cartPulse 420ms ease;
 }
 
 .lang-switch,
@@ -187,6 +244,8 @@ select {
   height: 100%;
   object-fit: cover;
   opacity: 0.28;
+  transform-origin: center;
+  animation: heroDrift 24s ease-in-out alternate infinite;
 }
 
 .hero::after {
@@ -262,6 +321,11 @@ h1 {
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
 }
 
 .primary-button,
@@ -290,6 +354,16 @@ h1 {
   background: rgba(16, 26, 35, 0.92);
   border-color: var(--line);
   color: var(--ink);
+}
+
+.primary-button:hover,
+.request-link:hover,
+.cart-add-button:hover,
+.secondary-button:hover,
+.pager button:hover {
+  border-color: rgba(112, 189, 240, 0.72);
+  box-shadow: 0 14px 30px rgba(22, 119, 184, 0.28);
+  transform: translateY(-1px);
 }
 
 .hero-visual {
@@ -982,6 +1056,7 @@ td {
   inset: 0;
   z-index: 40;
   background: rgba(2, 6, 10, 0.58);
+  animation: overlayIn 180ms ease both;
 }
 
 .cart-drawer {
@@ -994,6 +1069,7 @@ td {
   background: var(--bg);
   border-left: 1px solid var(--line);
   box-shadow: var(--shadow);
+  animation: drawerIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .cart-drawer[hidden],
@@ -1131,6 +1207,20 @@ td {
   margin: 0;
 }
 
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 520ms ease,
+    transform 520ms ease;
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .cart-quick-contact {
   display: flex;
   gap: 12px;
@@ -1253,5 +1343,21 @@ td {
   .cart-fab {
     right: 12px;
     bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .hero-bg,
+  .reveal-on-scroll {
+    transform: none !important;
   }
 }

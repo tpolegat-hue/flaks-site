@@ -301,7 +301,12 @@
 
   function updateBadges() {
     document.querySelectorAll("[data-cart-count]").forEach((node) => {
+      const previous = node.textContent;
       node.textContent = String(cartCount());
+      if (previous !== node.textContent && node.textContent !== "0") {
+        node.classList.remove("cart-count-pulse");
+        window.requestAnimationFrame(() => node.classList.add("cart-count-pulse"));
+      }
     });
   }
 

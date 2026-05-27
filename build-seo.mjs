@@ -153,6 +153,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     </footer>
     <script src="../assets/seo-lang-switch.js"></script>
     <script src="../assets/cart.js"></script>
+    <script src="../assets/motion.js"></script>
   </body>
 </html>`;
 }
