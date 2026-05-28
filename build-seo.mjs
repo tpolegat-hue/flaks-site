@@ -106,6 +106,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="ktStUU9o0Pp1VxKn6AknzUox_oK7NCcKQa6A4uee4-I" />
     <title>${esc(title)}</title>
     <meta name="description" content="${esc(description)}">
     <meta name="robots" content="index,follow">
