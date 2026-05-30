@@ -353,17 +353,29 @@ function merchantText(value, maxLength = 5000) {
     .slice(0, maxLength);
 }
 
+function merchantTitle(product) {
+  const baseTitle = product.nameUa || product.nameRu;
+  if (product.categorySlug === "razvertki-zenkera-zenkovki") {
+    return merchantText(`Metalworking cutting tool - ${baseTitle}`, 150);
+  }
+  return merchantText(baseTitle, 150);
+}
+
+function merchantDescription(product) {
+  const parts = [];
+  if (product.categorySlug === "razvertki-zenkera-zenkovki") {
+    parts.push("Industrial metalworking cutting tool for machining metal");
+  }
+  parts.push(product.nameUa || product.nameRu, product.categoryUa || product.categoryRu, product.sectionUa || product.sectionRu, `Код: ${product.sku}`);
+  return merchantText(parts.filter(Boolean).join(". "));
+}
 function merchantFeed(products) {
   const items = products
     .filter((product) => Number(product.qty) > 0 && Number(product.price) > 0)
     .map((product) => {
-      const title = merchantText(product.nameUa || product.nameRu, 150);
+      const title = merchantTitle(product);
       const imageUrl = merchantImageUrl(product);
-      const description = merchantText(
-        [product.nameUa || product.nameRu, product.categoryUa || product.categoryRu, product.sectionUa || product.sectionRu, `Код: ${product.sku}`]
-          .filter(Boolean)
-          .join(". "),
-      );
+      const description = merchantDescription(product);
       return `    <item>
       <g:id>${esc(product.sku)}</g:id>
       <g:title>${esc(title)}</g:title>
