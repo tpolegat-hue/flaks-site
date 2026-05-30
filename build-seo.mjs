@@ -346,6 +346,8 @@ ${urls
 function merchantText(value, maxLength = 5000) {
   return String(value ?? "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/червячн\S*/gi, "зуборезные")
+    .replace(/черв['’]?ячн\S*/gi, "зуборізні")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, maxLength);
@@ -371,6 +373,7 @@ function merchantFeed(products) {
       <g:availability>in_stock</g:availability>
       <g:price>${price(product.price)} UAH</g:price>
       <g:condition>new</g:condition>
+      <g:google_product_category>Hardware &gt; Tools</g:google_product_category>
       <g:identifier_exists>no</g:identifier_exists>
       <g:product_type>${esc(merchantText(product.categoryUa || product.categoryRu, 750))}</g:product_type>
     </item>`;
