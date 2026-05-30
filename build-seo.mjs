@@ -318,6 +318,52 @@ ${urls
 `;
 }
 
+
+function merchantText(value, maxLength = 5000) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function merchantFeed(products) {
+  const imageUrl = `${siteUrl}/assets/flaks-og.jpg`;
+  const items = products
+    .filter((product) => Number(product.qty) > 0 && Number(product.price) > 0)
+    .map((product) => {
+      const title = merchantText(product.nameUa || product.nameRu, 150);
+      const description = merchantText(
+        [product.nameUa || product.nameRu, product.categoryUa || product.categoryRu, product.sectionUa || product.sectionRu, `Код: ${product.sku}`]
+          .filter(Boolean)
+          .join(". "),
+      );
+      return `    <item>
+      <g:id>${esc(product.sku)}</g:id>
+      <g:title>${esc(title)}</g:title>
+      <g:description>${esc(description)}</g:description>
+      <g:link>${esc(`${siteUrl}/products/${slugProduct(product)}`)}</g:link>
+      <g:image_link>${esc(imageUrl)}</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>${price(product.price)} UAH</g:price>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>${esc(merchantText(product.categoryUa || product.categoryRu, 750))}</g:product_type>
+    </item>`;
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>FLAKS product feed</title>
+    <link>${esc(siteUrl)}</link>
+    <description>Metalworking tools available from FLAKS</description>
+${items}
+  </channel>
+</rss>
+`;
+}
 function sitemapIndex(files) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -326,6 +372,7 @@ ${files.map((file) => `  <sitemap><loc>${siteUrl}/${file}</loc><lastmod>${conten
 `;
 }
 
+await fs.writeFile(path.join(root, "merchant-feed.xml"), merchantFeed(data.products), "utf8");
 await fs.writeFile(path.join(root, "sitemap-pages.xml"), sitemapUrlset(pageUrls), "utf8");
 await fs.writeFile(path.join(root, "sitemap-categories.xml"), sitemapUrlset(categoryUrls), "utf8");
 await fs.writeFile(path.join(root, "sitemap-products.xml"), sitemapUrlset(productUrls), "utf8");
