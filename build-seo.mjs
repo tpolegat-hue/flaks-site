@@ -39,6 +39,30 @@ async function refreshVersionedDataFile() {
 }
 
 await refreshVersionedDataFile();
+async function readJsonIfExists(relativePath) {
+  try {
+    return JSON.parse((await fs.readFile(path.join(root, relativePath), "utf8")).replace(/^\uFEFF/, ""));
+  } catch (error) {
+    if (error?.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+const merchantImages = await readJsonIfExists("assets/merchant-images/manifest.json");
+
+function absoluteAssetUrl(assetPath) {
+  if (/^https?:\/\//i.test(assetPath)) return assetPath;
+  const normalizedPath = String(assetPath || "").startsWith("/") ? assetPath : `/${assetPath}`;
+  return `${siteUrl}${normalizedPath}`;
+}
+
+function merchantImageUrl(product) {
+  return absoluteAssetUrl(
+    merchantImages.products?.[product.sku] ||
+      merchantImages.categoryFallbacks?.[product.categorySlug] ||
+      "/assets/flaks-og.jpg",
+  );
+}
 
 for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
   if (entry.isFile() && entry.name.endsWith(".html")) {
@@ -328,11 +352,11 @@ function merchantText(value, maxLength = 5000) {
 }
 
 function merchantFeed(products) {
-  const imageUrl = `${siteUrl}/assets/flaks-og.jpg`;
   const items = products
     .filter((product) => Number(product.qty) > 0 && Number(product.price) > 0)
     .map((product) => {
       const title = merchantText(product.nameUa || product.nameRu, 150);
+      const imageUrl = merchantImageUrl(product);
       const description = merchantText(
         [product.nameUa || product.nameRu, product.categoryUa || product.categoryRu, product.sectionUa || product.sectionRu, `Код: ${product.sku}`]
           .filter(Boolean)
