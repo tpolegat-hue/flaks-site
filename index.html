@@ -35,6 +35,7 @@
     <link rel="alternate" hreflang="ru-UA" href="https://www.flaks.com.ua/?lang=ru" />
     <link rel="alternate" hreflang="x-default" href="https://www.flaks.com.ua/" />
     <link rel="icon" type="image/png" href="assets/favicon-32.png" />
+    <link rel="preload" as="image" href="assets/flaks-hero.jpg" fetchpriority="high" />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
       {
@@ -97,7 +98,7 @@
   <body>
     <header class="topbar">
       <a class="brand" href="#top" aria-label="FLAKS">
-        <span class="brand-mark"><img src="assets/icon-192.png" alt="" /></span>
+        <span class="brand-mark"><img src="assets/icon-192.png" width="54" height="44" alt="" /></span>
         <span>
           <strong>FLAKS</strong>
           <small data-i18n="brandNote">Металообробний інструмент</small>
@@ -124,7 +125,7 @@
 
     <main id="top">
       <section class="hero">
-        <img class="hero-bg" src="assets/flaks-hero.jpg" alt="" />
+        <img class="hero-bg" src="assets/flaks-hero.jpg" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
         <div class="hero-copy">
           <p class="eyebrow" data-i18n="eyebrow">Прайс із наявності</p>
           <h1 data-i18n="heroTitle">Металообробний інструмент FLAKS</h1>
@@ -137,19 +138,19 @@
           </div>
         </div>
         <div class="hero-visual" aria-hidden="true">
-          <img src="assets/flaks-hero.jpg" alt="" />
+          <img src="assets/flaks-hero.jpg" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
         </div>
       </section>
 
       <section class="stats" aria-label="Catalog statistics">
         <div>
           <img src="assets/stat-products.jpg" alt="" loading="lazy" decoding="async">
-          <strong id="statProducts">0</strong>
+          <strong id="statProducts">12 037</strong>
           <span data-i18n="items">позицій</span>
         </div>
         <div>
           <img src="assets/stat-categories.jpg" alt="" loading="lazy" decoding="async">
-          <strong id="statCategories">0</strong>
+          <strong id="statCategories">21</strong>
           <span data-i18n="categories">категорій</span>
         </div>
         <div>
@@ -332,10 +333,63 @@
       <span class="developer-credit">Розробка / разработка: <a href="https://github.com/Flumos1" rel="author noopener" target="_blank">@Flumos</a></span>
     </footer>
 
-    <script src="data.28be6dd5305d.js"></script>
-    <script src="app.js"></script>
-    <script src="assets/cart.js"></script>
-    <script src="assets/motion.js"></script>
+    <script>
+      (() => {
+        const scripts = ["data.28be6dd5305d.js", "app.js", "assets/cart.js", "assets/motion.js"];
+        let loading;
+
+        function loadScript(src) {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.async = false;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.body.appendChild(script);
+          });
+        }
+
+        function loadCatalog() {
+          if (!loading) {
+            loading = scripts.reduce((chain, src) => chain.then(() => loadScript(src)), Promise.resolve());
+          }
+          return loading;
+        }
+
+        document.querySelectorAll('a[href="#catalog"], a[href$="#catalog"], input, select, [data-lang], [data-view], [data-cart-open], #resetFilters').forEach((node) => {
+          node.addEventListener("pointerenter", loadCatalog, { once: true, passive: true });
+          node.addEventListener("focus", loadCatalog, { once: true, passive: true });
+          node.addEventListener("click", loadCatalog, { once: true, passive: true });
+        });
+
+        const catalog = document.querySelector("#catalog");
+        if (catalog && "IntersectionObserver" in window) {
+          const observer = new IntersectionObserver(
+            (entries) => {
+              if (!entries.some((entry) => entry.isIntersecting)) return;
+              observer.disconnect();
+              loadCatalog();
+            },
+            { rootMargin: "900px 0px" },
+          );
+          observer.observe(catalog);
+        }
+
+        const schedule = () => {
+          if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(loadCatalog, { timeout: 2600 });
+          } else {
+            window.setTimeout(loadCatalog, 1600);
+          }
+        };
+
+        if (document.readyState === "complete") {
+          schedule();
+        } else {
+          window.addEventListener("load", schedule, { once: true });
+        }
+      })();
+    </script>
   </body>
 </html>
 
