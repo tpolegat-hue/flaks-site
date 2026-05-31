@@ -35,7 +35,7 @@
     <link rel="alternate" hreflang="ru-UA" href="https://www.flaks.com.ua/?lang=ru" />
     <link rel="alternate" hreflang="x-default" href="https://www.flaks.com.ua/" />
     <link rel="icon" type="image/png" href="assets/favicon-32.png" />
-    <link rel="preload" as="image" href="assets/flaks-hero.jpg" fetchpriority="high" />
+    <link rel="preload" as="image" href="assets/flaks-hero-480.jpg" imagesrcset="assets/flaks-hero-480.jpg 480w, assets/flaks-hero.jpg 960w" imagesizes="100vw" fetchpriority="high" />
     <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
       {
@@ -125,7 +125,7 @@
 
     <main id="top">
       <section class="hero">
-        <img class="hero-bg" src="assets/flaks-hero.jpg" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
+        <img class="hero-bg" src="assets/flaks-hero-480.jpg" srcset="assets/flaks-hero-480.jpg 480w, assets/flaks-hero.jpg 960w" sizes="100vw" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
         <div class="hero-copy">
           <p class="eyebrow" data-i18n="eyebrow">Прайс із наявності</p>
           <h1 data-i18n="heroTitle">Металообробний інструмент FLAKS</h1>
@@ -138,23 +138,23 @@
           </div>
         </div>
         <div class="hero-visual" aria-hidden="true">
-          <img src="assets/flaks-hero.jpg" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
+          <img src="assets/flaks-hero-480.jpg" srcset="assets/flaks-hero-480.jpg 480w, assets/flaks-hero.jpg 960w" sizes="(max-width: 900px) 100vw, 42vw" width="960" height="512" alt="" fetchpriority="high" decoding="async" />
         </div>
       </section>
 
       <section class="stats" aria-label="Catalog statistics">
         <div>
-          <img src="assets/stat-products.jpg" alt="" loading="lazy" decoding="async">
+          <img src="assets/stat-products-480.jpg" srcset="assets/stat-products-480.jpg 480w, assets/stat-products.jpg 900w" sizes="(max-width: 900px) 100vw, 33vw" alt="" loading="lazy" decoding="async">
           <strong id="statProducts">12 037</strong>
           <span data-i18n="items">позицій</span>
         </div>
         <div>
-          <img src="assets/stat-categories.jpg" alt="" loading="lazy" decoding="async">
+          <img src="assets/stat-categories-480.jpg" srcset="assets/stat-categories-480.jpg 480w, assets/stat-categories.jpg 900w" sizes="(max-width: 900px) 100vw, 33vw" alt="" loading="lazy" decoding="async">
           <strong id="statCategories">21</strong>
           <span data-i18n="categories">категорій</span>
         </div>
         <div>
-          <img src="assets/stat-prices.jpg" alt="" loading="lazy" decoding="async">
+          <img src="assets/stat-prices-480.jpg" srcset="assets/stat-prices-480.jpg 480w, assets/stat-prices.jpg 900w" sizes="(max-width: 900px) 100vw, 33vw" alt="" loading="lazy" decoding="async">
           <strong data-i18n="uah">UAH</strong>
           <span data-i18n="noVat">ціни без ПДВ</span>
         </div>
@@ -175,22 +175,22 @@
         </div>
         <div class="trust-grid" aria-label="FLAKS advantages">
           <div class="trust-card">
-            <img src="assets/trust-experience.jpg" alt="" loading="lazy" decoding="async">
+            <img src="assets/trust-experience-480.jpg" srcset="assets/trust-experience-480.jpg 480w, assets/trust-experience.jpg 600w" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 25vw" alt="" loading="lazy" decoding="async">
             <span data-i18n="trustYears">рік початку роботи</span>
             <strong>1991</strong>
           </div>
           <div class="trust-card">
-            <img src="assets/trust-clients.jpg" alt="" loading="lazy" decoding="async">
+            <img src="assets/trust-clients-480.jpg" srcset="assets/trust-clients-480.jpg 480w, assets/trust-clients.jpg 900w" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 25vw" alt="" loading="lazy" decoding="async">
             <span data-i18n="trustClients">замовників різного масштабу</span>
             <strong>9000+</strong>
           </div>
           <div class="trust-card">
-            <img src="assets/trust-delivery.jpg" alt="" loading="lazy" decoding="async">
+            <img src="assets/trust-delivery-480.jpg" srcset="assets/trust-delivery-480.jpg 480w, assets/trust-delivery.jpg 736w" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 25vw" alt="" loading="lazy" decoding="async">
             <span data-i18n="trustDelivery">відправка по всій Україні</span>
             <strong>UA</strong>
           </div>
           <div class="trust-card trust-card-standards">
-            <img src="assets/trust-standards.jpg" alt="" loading="lazy" decoding="async">
+            <img src="assets/trust-standards-480.jpg" srcset="assets/trust-standards-480.jpg 480w, assets/trust-standards.jpg 736w" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 25vw" alt="" loading="lazy" decoding="async">
             <span data-i18n="trustStock">якісний складський інструмент</span>
             <small>ГОСТ · ISO · DIN · ANSI · ASTM · EN · BS · API</small>
           </div>
@@ -333,9 +333,11 @@
       <span class="developer-credit">Розробка / разработка: <a href="https://github.com/Flumos1" rel="author noopener" target="_blank">@Flumos</a></span>
     </footer>
 
+    <script src="assets/cart.js" defer></script>
+    <script src="assets/motion.js" defer></script>
     <script>
       (() => {
-        const scripts = ["data.28be6dd5305d.js", "app.js", "assets/cart.js", "assets/motion.js"];
+        const scripts = ["data.28be6dd5305d.js", "app.js"];
         let loading;
 
         function loadScript(src) {
@@ -356,7 +358,7 @@
           return loading;
         }
 
-        document.querySelectorAll('a[href="#catalog"], a[href$="#catalog"], input, select, [data-lang], [data-view], [data-cart-open], #resetFilters').forEach((node) => {
+        document.querySelectorAll('a[href="#catalog"], a[href$="#catalog"], input, select, [data-lang], [data-view], #resetFilters').forEach((node) => {
           node.addEventListener("pointerenter", loadCatalog, { once: true, passive: true });
           node.addEventListener("focus", loadCatalog, { once: true, passive: true });
           node.addEventListener("click", loadCatalog, { once: true, passive: true });
@@ -370,23 +372,17 @@
               observer.disconnect();
               loadCatalog();
             },
-            { rootMargin: "900px 0px" },
+            { rootMargin: "200px 0px" },
           );
           observer.observe(catalog);
         }
+        if (!catalog || !("IntersectionObserver" in window)) {
+          window.addEventListener("scroll", loadCatalog, { once: true, passive: true });
+        }
 
-        const schedule = () => {
-          if ("requestIdleCallback" in window) {
-            window.requestIdleCallback(loadCatalog, { timeout: 2600 });
-          } else {
-            window.setTimeout(loadCatalog, 1600);
-          }
-        };
-
-        if (document.readyState === "complete") {
-          schedule();
-        } else {
-          window.addEventListener("load", schedule, { once: true });
+        const params = new URLSearchParams(window.location.search);
+        if (window.location.hash === "#catalog" || params.has("q")) {
+          loadCatalog();
         }
       })();
     </script>
