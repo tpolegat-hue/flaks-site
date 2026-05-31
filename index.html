@@ -344,7 +344,7 @@
           document.head.appendChild(script);
         };
 
-        ["pointerdown", "keydown", "touchstart", "scroll"].forEach((eventName) => {
+        ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
           window.addEventListener(eventName, loadGoogleTag, { once: true, passive: true });
         });
       })();
@@ -387,21 +387,6 @@
           node.addEventListener("click", handleCatalogTrigger, { once: true });
         });
 
-        const catalog = document.querySelector("#catalog");
-        if (catalog && "IntersectionObserver" in window) {
-          const observer = new IntersectionObserver(
-            (entries) => {
-              if (!entries.some((entry) => entry.isIntersecting)) return;
-              observer.disconnect();
-              loadCatalog();
-            },
-            { rootMargin: "200px 0px" },
-          );
-          observer.observe(catalog);
-        }
-        if (!catalog || !("IntersectionObserver" in window)) {
-          window.addEventListener("scroll", loadCatalog, { once: true, passive: true });
-        }
 
         const params = new URLSearchParams(window.location.search);
         if (window.location.hash === "#catalog" || params.has("q")) {
