@@ -98,12 +98,44 @@ def extension_from_type(content_type, url):
     return suffix if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".jpg"
 
 
+def image_dimensions(path):
+    data = path.read_bytes()
+    if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 24:
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    if data.startswith(b"\xff\xd8"):
+        index = 2
+        while index + 9 < len(data):
+            if data[index] != 0xFF:
+                index += 1
+                continue
+            marker = data[index + 1]
+            index += 2
+            if marker in {0xD8, 0xD9}:
+                continue
+            if index + 2 > len(data):
+                break
+            length = int.from_bytes(data[index:index + 2], "big")
+            if length < 2 or index + length > len(data):
+                break
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+                return int.from_bytes(data[index + 5:index + 7], "big"), int.from_bytes(data[index + 3:index + 5], "big")
+            index += length
+    return 0, 0
+
+
+def usable_merchant_image(path):
+    width, height = image_dimensions(path)
+    return width >= 100 and height >= 100
+
+
 def download_image(url, out_dir, timeout=30):
     digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:12]
     cached = sorted(out_dir.glob(f"{digest}.*"))
     if cached:
         target = cached[0]
-        return f"/assets/merchant-images/{target.name}", target.stat().st_size
+        if usable_merchant_image(target):
+            return f"/assets/merchant-images/{target.name}", target.stat().st_size
+        target.unlink(missing_ok=True)
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 FLAKS merchant feed"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         data = response.read()
@@ -112,6 +144,9 @@ def download_image(url, out_dir, timeout=30):
     target = out_dir / filename
     if not target.exists() or target.read_bytes() != data:
         target.write_bytes(data)
+    if not usable_merchant_image(target):
+        target.unlink(missing_ok=True)
+        raise ValueError("Image is smaller than 100x100 px")
     return f"/assets/merchant-images/{filename}", len(data)
 
 
@@ -170,7 +205,9 @@ def main():
         for name in (product.get("nameRu"), product.get("nameUa")):
             record = prom_by_title.get(normalize(name))
             if record:
-                candidates.append(record["images"][0])
+                for image_url in record["images"][:4]:
+                    if image_url not in candidates:
+                        candidates.append(image_url)
                 exact_matches += 1
                 break
         category_image = category_image_urls.get(product.get("categorySlug"))
@@ -200,11 +237,17 @@ def main():
         time.sleep(0.05)
 
     manifest_products = {}
+    manifest_additional_products = {}
     for sku, urls in product_image_candidates.items():
+        local_paths = []
         for url in urls:
-            if url in url_to_local:
-                manifest_products[sku] = url_to_local[url]
-                break
+            local_path = url_to_local.get(url)
+            if local_path and local_path not in local_paths:
+                local_paths.append(local_path)
+        if local_paths:
+            manifest_products[sku] = local_paths[0]
+        if len(local_paths) > 1:
+            manifest_additional_products[sku] = local_paths[1:10]
     manifest_categories = {
         slug: url_to_local[url]
         for slug, url in category_image_urls.items()
@@ -223,10 +266,13 @@ def main():
             "defaultFallbackMatches": default_matches,
             "categoryImages": len(manifest_categories),
             "productImages": len(manifest_products),
+            "additionalImageProducts": len(manifest_additional_products),
+            "additionalImages": sum(len(paths) for paths in manifest_additional_products.values()),
             "uniqueDownloadedImages": len(url_to_local),
             "failedDownloads": len(failures),
         },
         "products": manifest_products,
+        "additionalProducts": manifest_additional_products,
         "categoryFallbacks": manifest_categories,
         "failures": failures,
     }

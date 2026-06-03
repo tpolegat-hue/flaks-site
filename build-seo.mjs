@@ -32,7 +32,7 @@ async function refreshVersionedDataFile() {
   await fs.writeFile(path.join(root, versionedDataFile), dataText, "utf8");
   const indexPath = path.join(root, "index.html");
   const indexHtml = await fs.readFile(indexPath, "utf8");
-  const nextHtml = indexHtml.replace(/<script src="data(?:\.[a-f0-9]{12})?\.js"><\/script>/, `<script src="${versionedDataFile}"></script>`);
+  const nextHtml = indexHtml.replace(/"data(?:\.[a-f0-9]{12})?\.js"/, `"${versionedDataFile}"`);
   if (nextHtml !== indexHtml) {
     await fs.writeFile(indexPath, nextHtml, "utf8");
   }
@@ -353,21 +353,121 @@ function merchantText(value, maxLength = 5000) {
     .slice(0, maxLength);
 }
 
+const GOOGLE_PRODUCT_CATEGORY_BY_SLUG = {
+  "metchiki-mr-metricheskie-pravye": "1184",
+  "metchiki-levye": "1184",
+  "metchiki-mr-cherez-shag": "1184",
+  "metchiki-g-tr-k-rc-ktr": "1184",
+  "metchiki-ruchnye": "1184",
+  "metchiki-trapetsiya-i-dr": "1184",
+  "metchiki-gaechnye": "1184",
+  "plashki": "1184",
+  "sverla-kkh": "1540",
+  "sverla-kkh-tverdosplavnye": "1540",
+  "sverla-kkh-kitay": "1540",
+  "sverla-tskh-srednie": "1540",
+  "sverla-tskh-dlinnye": "1540",
+  "sverla-tskh-levye": "1540",
+  "sverla-tsentrovochnye": "1540",
+  "sverla-tverdosplavnye": "1540",
+  "razvertki-zenkera-zenkovki": "1819",
+  "frezy-kontsevye": "1180",
+  "frezy-diskovye": "1180",
+  "frezy-chervyachnye-dolbyaki-t-obr": "1180",
+  "frezy-tortsevye-i-drugoe": "1180",
+  "kalibry": "1732",
+};
+
+function merchantToolKind(product) {
+  const text = `${product.nameRu || ""} ${product.nameUa || ""} ${product.sectionRu || ""}`.toLowerCase();
+  if (product.categorySlug?.startsWith("metchiki")) return "Metalworking tap";
+  if (product.categorySlug === "plashki") return "Threading die";
+  if (product.categorySlug?.startsWith("sverla")) return "Metal drill bit";
+  if (product.categorySlug?.startsWith("frezy")) return "Metalworking milling cutter";
+  if (product.categorySlug === "kalibry") return "Measuring gauge";
+  if (product.categorySlug === "razvertki-zenkera-zenkovki") {
+    if (/зенковк|зенківк/.test(text)) return "Metalworking countersink";
+    if (/зенкер/.test(text)) return "Metalworking counterbore";
+    if (/развертк|розгорт/.test(text)) return "Metalworking reamer";
+    return "Metalworking reamer and countersink";
+  }
+  return "Metalworking tool";
+}
+
+function merchantMaterial(product) {
+  const text = `${product.nameRu || ""} ${product.nameUa || ""}`;
+  const matches = [];
+  const add = (value) => {
+    if (value && !matches.includes(value)) matches.push(value);
+  };
+  if (/Р6М5К5/i.test(text)) add("HSS Р6М5К5");
+  if (/Р6М5/i.test(text)) add("HSS Р6М5");
+  if (/Р18/i.test(text)) add("HSS Р18");
+  if (/Р9/i.test(text)) add("HSS Р9");
+  if (/HSS[-\s]?E/i.test(text)) add("HSS-E");
+  else if (/HSS/i.test(text)) add("HSS");
+  if (/ВК8/i.test(text)) add("Carbide ВК8");
+  if (/Т5К10/i.test(text)) add("Carbide Т5К10");
+  if (/Т15К6/i.test(text)) add("Carbide Т15К6");
+  if (/твердосплав/i.test(text) && !matches.some((value) => value.includes("Carbide"))) add("Carbide");
+  return matches.slice(0, 2).join(" / ");
+}
+
+function merchantSize(product) {
+  const text = product.nameRu || product.nameUa || "";
+  const metric = text.match(/(?:^|[\s(])([MМ]\s*\d+(?:[.,]\d+)?(?:\s*[xх]\s*\d+(?:[.,]\d+)?)?)/i)?.[1];
+  if (metric) return metric.replace(/\s+/g, "").replace("М", "M").replace("х", "x");
+  const diameter = text.match(/(?:ф|Ø|⌀)\s*=?\s*(\d+(?:[.,]\d+)?)/i)?.[1];
+  if (diameter) return `${diameter.replace(",", ".")} mm`;
+  const dimensions = text.match(/\b(\d+(?:[.,]\d+)?\s*[xх]\s*\d+(?:[.,]\d+)?(?:\s*[xх]\s*\d+(?:[.,]\d+)?)?)\b/i)?.[1];
+  if (dimensions) return `${dimensions.replace(/\s+/g, "").replace(/х/gi, "x")} mm`;
+  return "";
+}
+
+function merchantBrand(product) {
+  const text = `${product.nameRu || ""} ${product.nameUa || ""}`;
+  const brands = [
+    "Della Ferrera",
+    "Сестрорецк",
+    "Владивосток",
+    "ВИЗ",
+    "Bucovice",
+    "Presto",
+    "Gühring",
+    "Guhring",
+  ];
+  return brands.find((brand) => new RegExp(brand.replace("ü", "u"), "i").test(text)) || "";
+}
+
+function merchantPriorityLabel(product) {
+  const priceValue = Number(product.price);
+  const qtyValue = Number(product.qty);
+  if (priceValue >= 1000) return "high_value";
+  if (qtyValue >= 100) return "high_stock";
+  return "standard";
+}
+
 function merchantTitle(product) {
   const baseTitle = product.nameUa || product.nameRu;
-  if (product.categorySlug === "razvertki-zenkera-zenkovki") {
-    return merchantText(`Metalworking cutting tool - ${baseTitle}`, 150);
-  }
-  return merchantText(baseTitle, 150);
+  const parts = [merchantToolKind(product), merchantSize(product), merchantMaterial(product)].filter(Boolean);
+  return merchantText(`${parts.join(" ")} - ${baseTitle}`, 150);
 }
 
 function merchantDescription(product) {
-  const parts = [];
-  if (product.categorySlug === "razvertki-zenkera-zenkovki") {
-    parts.push("Industrial metalworking cutting tool for machining metal");
-  }
-  parts.push(product.nameUa || product.nameRu, product.categoryUa || product.categoryRu, product.sectionUa || product.sectionRu, `Код: ${product.sku}`);
+  const material = merchantMaterial(product);
+  const parts = [
+    `Industrial ${merchantToolKind(product).toLowerCase()} for machining metal`,
+    material ? `Material: ${material}` : "",
+    product.nameUa || product.nameRu,
+    product.categoryUa || product.categoryRu,
+    product.sectionUa || product.sectionRu,
+    `Code: ${product.sku}`,
+  ];
   return merchantText(parts.filter(Boolean).join(". "));
+}
+
+function merchantGoogleProductCategory(product) {
+  return GOOGLE_PRODUCT_CATEGORY_BY_SLUG[product.categorySlug] || "1167";
 }
 function merchantFeed(products) {
   const items = products
@@ -385,9 +485,13 @@ function merchantFeed(products) {
       <g:availability>in_stock</g:availability>
       <g:price>${price(product.price)} UAH</g:price>
       <g:condition>new</g:condition>
-      <g:google_product_category>Hardware &gt; Tools</g:google_product_category>
-      <g:identifier_exists>no</g:identifier_exists>
+      <g:google_product_category>${esc(merchantGoogleProductCategory(product))}</g:google_product_category>
+      <g:mpn>${esc(product.sku)}</g:mpn>
+      ${merchantBrand(product) ? `<g:brand>${esc(merchantBrand(product))}</g:brand>` : ""}
+      ${merchantMaterial(product) ? `<g:material>${esc(merchantMaterial(product))}</g:material>` : ""}
       <g:product_type>${esc(merchantText(product.categoryUa || product.categoryRu, 750))}</g:product_type>
+      <g:custom_label_0>${esc(product.categorySlug || "uncategorized")}</g:custom_label_0>
+      <g:custom_label_1>${esc(merchantPriorityLabel(product))}</g:custom_label_1>
     </item>`;
     })
     .join("\n");

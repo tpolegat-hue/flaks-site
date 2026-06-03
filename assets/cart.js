@@ -19,6 +19,7 @@
       total: "Разом",
       minimum: "Мінімальна сума замовлення 2 000 грн.",
       minimumLeft: "До мінімального замовлення залишилось",
+      minimumReached: "Мінімальна сума досягнута",
       qty: "Кількість",
       stock: "Наявність",
       price: "Ціна без ПДВ",
@@ -52,6 +53,7 @@
       total: "Итого",
       minimum: "Минимальная сумма заказа 2 000 грн.",
       minimumLeft: "До минимального заказа осталось",
+      minimumReached: "Минимальная сумма достигнута",
       qty: "Количество",
       stock: "Наличие",
       price: "Цена без НДС",
@@ -240,7 +242,7 @@
       <span>${escapeHtml(t("total"))}</span>
       <strong>${escapeHtml(money.format(total))}</strong>
     </div>
-    <p class="${minimumClass}">${escapeHtml(left > 0 ? `${t("minimum")} ${t("minimumLeft")}: ${money.format(left)}.` : t("minimum"))}</p>`;
+    <p class="${minimumClass}">${escapeHtml(left > 0 ? `${t("minimum")} ${t("minimumLeft")}: ${money.format(left)}.` : t("minimumReached"))}</p>`;
   }
 
   function checkoutFormHtml(items) {

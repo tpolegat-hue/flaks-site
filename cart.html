@@ -1,15 +1,6 @@
 <!doctype html>
 <html lang="uk">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-675L0XL19Y');
-    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Кошик-заявка FLAKS | Оформлення замовлення</title>
@@ -31,7 +22,7 @@
   >
     <header class="topbar">
       <a class="brand" href="index.html" data-keep-lang aria-label="FLAKS">
-        <span class="brand-mark"><img src="assets/icon-192.png" alt="" /></span>
+        <span class="brand-mark"><img src="assets/icon-64.png" srcset="assets/icon-64.png 64w, assets/icon-192.png 192w" sizes="54px" width="54" height="44" alt="" /></span>
         <span>
           <strong>FLAKS</strong>
           <small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small>
@@ -79,5 +70,24 @@
     <script src="assets/seo-lang-switch.js"></script>
     <script src="assets/cart.js"></script>
     <script src="assets/motion.js"></script>
+    <script>
+      (() => {
+        const loadGoogleTag = () => {
+          if (window.__flaksGtagLoaded) return;
+          window.__flaksGtagLoaded = true;
+          window.dataLayer = window.dataLayer || [];
+          window.gtag = function gtag(){ window.dataLayer.push(arguments); };
+          window.gtag("js", new Date());
+          window.gtag("config", "G-675L0XL19Y");
+          const script = document.createElement("script");
+          script.async = true;
+          script.src = "https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y";
+          document.head.appendChild(script);
+        };
+        ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
+          window.addEventListener(eventName, loadGoogleTag, { once: true, passive: true });
+        });
+      })();
+    </script>
   </body>
 </html>
