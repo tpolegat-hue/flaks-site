@@ -57,21 +57,22 @@ function absoluteAssetUrl(assetPath) {
   return `${siteUrl}${normalizedPath}`;
 }
 
-function merchantImageRelPath(product) {
-  const rel =
+function merchantImagePath(product) {
+  return (
     merchantImages.products?.[product.sku] ||
     merchantImages.categoryFallbacks?.[product.categorySlug] ||
-    "/assets/flaks-og.jpg";
+    "/assets/flaks-og.jpg"
+  );
+}
+
+function merchantImageRelPath(product) {
+  const rel = merchantImagePath(product);
   if (/^https?:\/\//i.test(rel)) return rel;
   return `..${rel.startsWith("/") ? rel : `/${rel}`}`;
 }
 
 function merchantImageUrl(product) {
-  return absoluteAssetUrl(
-    merchantImages.products?.[product.sku] ||
-      merchantImages.categoryFallbacks?.[product.categorySlug] ||
-      "/assets/flaks-og.jpg",
-  );
+  return absoluteAssetUrl(merchantImagePath(product));
 }
 
 const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -136,7 +137,7 @@ function pagination(category, currentPage, totalPages) {
   </nav>`;
 }
 
-function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, descriptionRu = description, lang = "uk") {
+function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, descriptionRu = description, lang = "uk", og = {}) {
   return `<!doctype html>
 <html lang="${lang}">
   <head>
@@ -157,17 +158,15 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <meta name="robots" content="index,follow">
     <meta property="og:title" content="${esc(title)}">
     <meta property="og:description" content="${esc(description)}">
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="${esc(og.type || "website")}">
     <meta property="og:site_name" content="FLAKS">
-    <meta property="og:image" content="${siteUrl}/assets/flaks-og.jpg">
+    <meta property="og:url" content="${esc(canonicalUrl)}">
+    <meta property="og:image" content="${esc(og.image || `${siteUrl}/assets/flaks-og.jpg`)}">
     <link rel="canonical" href="${esc(canonicalUrl)}">
-    <link rel="alternate" hreflang="uk-UA" href="${esc(canonicalUrl)}">
-    <link rel="alternate" hreflang="ru-UA" href="${esc(canonicalUrl)}?lang=ru">
-    <link rel="alternate" hreflang="x-default" href="${esc(canonicalUrl)}">
     <link rel="icon" type="image/png" href="../assets/favicon-32.png">
     <link rel="stylesheet" href="../styles.css">
     ${(Array.isArray(jsonLd) ? jsonLd : [jsonLd])
-      .map((entry) => `<script type="application/ld+json">${JSON.stringify(entry)}</script>`)
+      .map((entry) => `<script type="application/ld+json">${JSON.stringify(entry).replaceAll("<", "\\u003c")}</script>`)
       .join("\n    ")}
   </head>
   <body data-title-uk="${esc(title)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(description)}" data-description-ru="${esc(descriptionRu)}">
@@ -407,7 +406,7 @@ for (const product of data.products) {
   const body = `${breadcrumbHtml(product)}
     <section class="seo-hero seo-product-hero">
       <div class="seo-product-media">
-        <img src="${esc(merchantImageRelPath(product))}" alt="${esc(product.nameUa)}" loading="lazy" width="360" height="360">
+        <img src="${esc(merchantImageRelPath(product))}" alt="${esc(product.nameUa)}" fetchpriority="high" width="360" height="360">
       </div>
       <div class="seo-product-info">
         <p class="eyebrow">${bilingual(product.categoryUa, product.categoryRu)}</p>
@@ -439,6 +438,8 @@ for (const product of data.products) {
       productUrl,
       titleRu,
       descriptionRu,
+      "uk",
+      { type: "product", image: merchantImageUrl(product) },
     ),
   });
   productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
