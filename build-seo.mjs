@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { parseSpecs, buildSpecRows, buildDescription, buildMetaDescription } from "./seo-spec.mjs";
+import { parseSpecs, buildSpecRows, buildDescription, buildMetaDescription, TOOL_KINDS } from "./seo-spec.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const siteUrl = (globalThis.process?.env?.SITE_URL || "https://www.flaks.com.ua").replace(/\/$/, "");
@@ -76,6 +76,178 @@ function merchantImageUrl(product) {
 }
 
 const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Parse specs once per product; reused by category stats, product pages and the merchant feed.
+const specsBySku = new Map(data.products.map((product) => [product.sku, parseSpecs(product)]));
+
+function ukPlural(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
+function categoryStats(products) {
+  let minPrice = Infinity;
+  const diameters = [];
+  const threads = [];
+  const materials = new Map();
+  const brands = new Set();
+  const kinds = new Map();
+  for (const product of products) {
+    const specs = specsBySku.get(product.sku);
+    const priceValue = Number(product.price);
+    if (priceValue > 0 && priceValue < minPrice) minPrice = priceValue;
+    if (specs.diameter) diameters.push(Number(specs.diameter));
+    if (specs.threadKind === "metric") threads.push(Number(specs.thread.slice(1).split("×")[0]));
+    for (const m of specs.materials) materials.set(m.code, (materials.get(m.code) || 0) + 1);
+    if (specs.brand) brands.add(specs.brand);
+    kinds.set(specs.kindId, (kinds.get(specs.kindId) || 0) + 1);
+  }
+  const byCount = [...kinds.entries()].sort((a, b) => b[1] - a[1]);
+  return {
+    minPrice: minPrice === Infinity ? 0 : Math.round(minPrice),
+    diaMin: diameters.length ? Math.min(...diameters) : 0,
+    diaMax: diameters.length ? Math.max(...diameters) : 0,
+    threadMin: threads.length ? Math.min(...threads) : 0,
+    threadMax: threads.length ? Math.max(...threads) : 0,
+    materials: [...materials.entries()].sort((a, b) => b[1] - a[1]).map(([code]) => code).slice(0, 4),
+    brands: [...brands].slice(0, 4),
+    kindId: byCount[0]?.[0] || "tool",
+  };
+}
+
+// Cross-links between categories that buyers shop together (taps with dies, drills with reamers).
+const RELATED_CATEGORIES = {
+  "metchiki-mr-metricheskie-pravye": ["plashki", "metchiki-gaechnye", "metchiki-ruchnye"],
+  "metchiki-levye": ["metchiki-mr-metricheskie-pravye", "sverla-tskh-levye"],
+  "metchiki-mr-cherez-shag": ["metchiki-mr-metricheskie-pravye", "plashki"],
+  "metchiki-g-tr-k-rc-ktr": ["metchiki-mr-metricheskie-pravye", "plashki"],
+  "metchiki-ruchnye": ["metchiki-mr-metricheskie-pravye", "plashki"],
+  "metchiki-trapetsiya-i-dr": ["metchiki-mr-metricheskie-pravye", "metchiki-g-tr-k-rc-ktr"],
+  "metchiki-gaechnye": ["metchiki-mr-metricheskie-pravye", "plashki"],
+  "plashki": ["metchiki-mr-metricheskie-pravye", "metchiki-ruchnye"],
+  "kalibry": ["metchiki-mr-metricheskie-pravye", "plashki"],
+  "sverla-kkh": ["sverla-tskh-srednie", "sverla-kkh-tverdosplavnye", "razvertki-zenkera-zenkovki"],
+  "sverla-kkh-tverdosplavnye": ["sverla-kkh", "sverla-tverdosplavnye"],
+  "sverla-kkh-kitay": ["sverla-kkh", "sverla-tskh-srednie"],
+  "sverla-tskh-srednie": ["sverla-tskh-dlinnye", "sverla-kkh", "sverla-tsentrovochnye"],
+  "sverla-tskh-dlinnye": ["sverla-tskh-srednie", "sverla-kkh"],
+  "sverla-tskh-levye": ["sverla-tskh-srednie", "metchiki-levye"],
+  "sverla-tsentrovochnye": ["sverla-tskh-srednie", "sverla-kkh"],
+  "sverla-tverdosplavnye": ["sverla-kkh-tverdosplavnye", "sverla-tskh-srednie"],
+  "razvertki-zenkera-zenkovki": ["sverla-kkh", "sverla-tskh-srednie"],
+  "frezy-kontsevye": ["frezy-diskovye", "frezy-tortsevye-i-drugoe"],
+  "frezy-diskovye": ["frezy-kontsevye", "frezy-chervyachnye-dolbyaki-t-obr"],
+  "frezy-chervyachnye-dolbyaki-t-obr": ["frezy-diskovye", "frezy-kontsevye"],
+  "frezy-tortsevye-i-drugoe": ["frezy-kontsevye", "frezy-diskovye"],
+};
+
+const ARTICLE_LINKS = {
+  drillForThread: { href: "/articles/diametr-sverdla-pid-rizbu.html", ua: "Діаметр свердла під різьбу: таблиця М2–М30", ru: "Диаметр сверла под резьбу: таблица М2–М30" },
+  morse: { href: "/articles/konus-morze-rozmiry.html", ua: "Конус Морзе: таблиця розмірів КМ0–КМ6", ru: "Конус Морзе: таблица размеров КМ0–КМ6" },
+  tapping: { href: "/articles/narizannya-rizby-mitchykom.html", ua: "Як нарізати різьбу мітчиком", ru: "Как нарезать резьбу метчиком" },
+  steel: { href: "/articles/stal-r6m5-ta-r6m5k5.html", ua: "Р6М5 чи Р6М5К5: яку сталь вибрати", ru: "Р6М5 или Р6М5К5: какую сталь выбрать" },
+  pick: { href: "/articles/yak-pidibraty-metalorizalnyi-instrument.html", ua: "Як підібрати металорізальний інструмент", ru: "Как подобрать металлорежущий инструмент" },
+};
+
+function categoryArticleLinks(slug) {
+  if (slug.startsWith("metchiki") || slug === "plashki" || slug === "kalibry")
+    return [ARTICLE_LINKS.drillForThread, ARTICLE_LINKS.tapping];
+  if (slug.startsWith("sverla-kkh")) return [ARTICLE_LINKS.morse, ARTICLE_LINKS.steel];
+  if (slug.startsWith("sverla")) return [ARTICLE_LINKS.drillForThread, ARTICLE_LINKS.steel];
+  if (slug === "razvertki-zenkera-zenkovki") return [ARTICLE_LINKS.morse, ARTICLE_LINKS.pick];
+  if (slug.startsWith("frezy")) return [ARTICLE_LINKS.steel, ARTICLE_LINKS.pick];
+  return [ARTICLE_LINKS.pick];
+}
+
+function categorySeoTextHtml(category, stats, count, categoriesBySlug) {
+  const kind = TOOL_KINDS[stats.kindId];
+  const sizeUa = [];
+  const sizeRu = [];
+  if (stats.threadMin && stats.threadMax && stats.threadMin !== stats.threadMax) {
+    sizeUa.push(`різьби від М${stats.threadMin} до М${stats.threadMax}`);
+    sizeRu.push(`резьбы от М${stats.threadMin} до М${stats.threadMax}`);
+  }
+  if (stats.diaMin && stats.diaMax && stats.diaMin !== stats.diaMax) {
+    sizeUa.push(`діаметри від ${stats.diaMin} до ${stats.diaMax} мм`);
+    sizeRu.push(`диаметры от ${stats.diaMin} до ${stats.diaMax} мм`);
+  }
+  const posUa = ukPlural(count, "позиція", "позиції", "позицій");
+  const posRu = ukPlural(count, "позиция", "позиции", "позиций");
+
+  const partsUa = [`${category.ua} зі складу FLAKS у Харкові: ${count} ${posUa} для ${kind.purposeUa}.`];
+  const partsRu = [`${category.ru} со склада FLAKS в Харькове: ${count} ${posRu} для ${kind.purposeRu}.`];
+  if (sizeUa.length) {
+    partsUa.push(`В асортименті ${sizeUa.join(", ")}.`);
+    partsRu.push(`В ассортименте ${sizeRu.join(", ")}.`);
+  }
+  if (stats.materials.length) {
+    partsUa.push(`Матеріали: ${stats.materials.join(", ")}.`);
+    partsRu.push(`Материалы: ${stats.materials.join(", ")}.`);
+  }
+  if (stats.brands.length) {
+    partsUa.push(`Серед виробників: ${stats.brands.join(", ")}.`);
+    partsRu.push(`Среди производителей: ${stats.brands.join(", ")}.`);
+  }
+  partsUa.push(`Ціни від ${stats.minPrice} грн без ПДВ, відправлення по всій Україні, опт і роздріб, замовлення від 2 000 грн.`);
+  partsRu.push(`Цены от ${stats.minPrice} грн без НДС, отправка по всей Украине, опт и розница, заказ от 2 000 грн.`);
+
+  const related = (RELATED_CATEGORIES[category.slug] || [])
+    .map((slug) => categoriesBySlug.get(slug))
+    .filter(Boolean)
+    .map((c) => `<a href="../catalog/${esc(c.slug)}.html" data-keep-lang>${bilingual(c.ua, c.ru)}</a>`);
+  const articles = categoryArticleLinks(category.slug)
+    .map((a) => `<a href="..${esc(a.href)}" data-keep-lang>${bilingual(a.ua, a.ru)}</a>`);
+
+  return `<section class="content-section seo-prose">
+        <h2>${bilingual(`${category.ua} — асортимент і ціни`, `${category.ru} — ассортимент и цены`)}</h2>
+        <p>${bilingual(partsUa.join(" "), partsRu.join(" "))}</p>
+        <p class="seo-note">${bilingual("Дивіться також:", "Смотрите также:")} ${[...related, ...articles].join(" · ")}</p>
+      </section>`;
+}
+
+function categoryFaq(category, stats, count) {
+  const items = [
+    {
+      qUa: `Як купити: ${category.ua.toLowerCase()} зі складу FLAKS?`,
+      qRu: `Как купить: ${category.ru.toLowerCase()} со склада FLAKS?`,
+      aUa: `Додайте потрібні позиції в кошик на цій сторінці або надішліть список на tpolegat@gmail.com чи за телефоном +380 67 545 31 15. Підтвердимо наявність, ціну без ПДВ і строки відправлення. Мінімальне замовлення — 2 000 грн.`,
+      aRu: `Добавьте нужные позиции в корзину на этой странице или отправьте список на tpolegat@gmail.com либо по телефону +380 67 545 31 15. Подтвердим наличие, цену без НДС и сроки отправки. Минимальный заказ — 2 000 грн.`,
+    },
+    {
+      qUa: `Скільки коштує ${category.ua.toLowerCase()} в Україні?`,
+      qRu: `Сколько стоит ${category.ru.toLowerCase()} в Украине?`,
+      aUa: `У каталозі FLAKS ${count} ${ukPlural(count, "позиція", "позиції", "позицій")} цієї категорії, ціни від ${stats.minPrice} грн без ПДВ. Вартість залежить від розміру, матеріалу та виробника — актуальні ціни в таблиці на цій сторінці (станом на ${contentLastmod}).`,
+      aRu: `В каталоге FLAKS ${count} ${ukPlural(count, "позиция", "позиции", "позиций")} этой категории, цены от ${stats.minPrice} грн без НДС. Стоимость зависит от размера, материала и производителя — актуальные цены в таблице на этой странице (на ${contentLastmod}).`,
+    },
+    {
+      qUa: `Чи відправляєте інструмент по Україні?`,
+      qRu: `Отправляете ли инструмент по Украине?`,
+      aUa: `Так, FLAKS базується у Харкові та відправляє металорізальний інструмент по всій Україні. Надішліть заявку — уточнимо наявність, ціну і строки відправлення.`,
+      aRu: `Да, FLAKS базируется в Харькове и отправляет металлорежущий инструмент по всей Украине. Отправьте заявку — уточним наличие, цену и сроки отправки.`,
+    },
+  ];
+  const html = `<section class="content-section seo-faq">
+        <h2>${bilingual("Часті питання", "Частые вопросы")}</h2>
+        ${items
+          .map(
+            (item) => `<details><summary>${bilingual(item.qUa, item.qRu)}</summary><p>${bilingual(item.aUa, item.aRu)}</p></details>`,
+          )
+          .join("\n        ")}
+      </section>`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.qUa,
+      acceptedAnswer: { "@type": "Answer", text: item.aUa },
+    })),
+  };
+  return { html, jsonLd };
+}
 
 for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
   if (entry.isFile() && entry.name.endsWith(".html")) {
@@ -276,14 +448,21 @@ const pageUrls = [
   { loc: `${siteUrl}/contacts.html`, priority: "0.7" },
   { loc: `${siteUrl}/articles`, priority: "0.8" },
   { loc: `${siteUrl}/articles/yak-pidibraty-metalorizalnyi-instrument.html`, priority: "0.7" },
+  { loc: `${siteUrl}/articles/narizannya-rizby-mitchykom.html`, priority: "0.7" },
+  { loc: `${siteUrl}/articles/stal-r6m5-ta-r6m5k5.html`, priority: "0.7" },
+  { loc: `${siteUrl}/articles/diametr-sverdla-pid-rizbu.html`, priority: "0.7" },
+  { loc: `${siteUrl}/articles/konus-morze-rozmiry.html`, priority: "0.7" },
 ];
 const categoryUrls = [];
 const productUrls = [];
 const categoryPageWrites = [];
 
+const categoriesBySlug = new Map(data.categories.map((item) => [item.slug, item]));
+
 for (const category of data.categories.filter((item) => item.count > 0)) {
   const products = data.products.filter((product) => product.categorySlug === category.slug);
   const totalPages = Math.max(1, Math.ceil(products.length / categoryPageSize));
+  const stats = categoryStats(products);
   const categoryLastmod = products.reduce((date, product) => {
     const productDate = lastmod(product.updatedAt);
     return productDate > date ? productDate : date;
@@ -305,15 +484,26 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const pageSuffixUk = pageNumber > 1 ? `, сторінка ${pageNumber}` : "";
     const pageSuffixRu = pageNumber > 1 ? `, страница ${pageNumber}` : "";
 
-    const title = `${category.ua} — купити в Україні${pageSuffixUk} | FLAKS`;
-    const description = `${category.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
-    const titleRu = `${category.ru} купить в Украине${pageSuffixRu} | FLAKS`;
-    const descriptionRu = `${category.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
+    const isFirstPage = pageNumber === 1;
+    const title = isFirstPage
+      ? `${category.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`
+      : `${category.ua} — купити в Україні${pageSuffixUk} | FLAKS`;
+    const titleRu = isFirstPage
+      ? `${category.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`
+      : `${category.ru} купить в Украине${pageSuffixRu} | FLAKS`;
+    const description = isFirstPage
+      ? `${category.ua}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
+      : `${category.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
+    const descriptionRu = isFirstPage
+      ? `${category.ru}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Отправка по всей Украине, опт и розница.`
+      : `${category.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
+    const faq = isFirstPage ? categoryFaq(category, stats, products.length) : null;
     const body = `<section class="seo-hero">
         <p class="eyebrow"><span data-lang-content="uk">Категорія інструменту</span><span data-lang-content="ru" hidden>Категория инструмента</span></p>
         <h1><span data-lang-content="uk">${esc(category.ua)}</span><span data-lang-content="ru" hidden>${esc(category.ru)}</span></h1>
         <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
       </section>
+      ${isFirstPage ? categorySeoTextHtml(category, stats, products.length, categoriesBySlug) : ""}
       ${pagination(category, pageNumber, totalPages)}
       <section class="seo-table-wrap">
         <p class="seo-note"><span data-lang-content="uk">Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.</span></p>
@@ -322,6 +512,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
           <tbody>${rows}</tbody>
         </table>
       </section>
+      ${faq ? faq.html : ""}
       ${pagination(category, pageNumber, totalPages)}`;
 
     const href = categoryPageHref(category, pageNumber);
@@ -329,7 +520,15 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const fileName = pageNumber === 1 ? `${category.slug}.html` : `${category.slug}-page-${pageNumber}.html`;
     categoryPageWrites.push({
       fileName,
-      html: page(title, description, body, categoryJsonLd(category, pageProducts), categoryUrl, titleRu, descriptionRu),
+      html: page(
+        title,
+        description,
+        body,
+        faq ? [categoryJsonLd(category, pageProducts), faq.jsonLd] : categoryJsonLd(category, pageProducts),
+        categoryUrl,
+        titleRu,
+        descriptionRu,
+      ),
     });
     categoryUrls.push({ loc: categoryUrl, priority: pageNumber === 1 ? "0.8" : "0.55", lastmod: categoryLastmod });
   }
@@ -398,7 +597,7 @@ function relatedHtml(product) {
 const productPageWrites = [];
 
 for (const product of data.products) {
-  const specs = parseSpecs(product);
+  const specs = specsBySku.get(product.sku);
   const title = `${product.nameUa} купити в Україні | FLAKS`;
   const titleRu = `${product.nameRu} купить в Украине | FLAKS`;
   const description = buildMetaDescription(product, specs, "ua");
@@ -591,7 +790,7 @@ function merchantFeed(products) {
       const title = merchantTitle(product);
       const imageUrl = merchantImageUrl(product);
       const description = merchantDescription(product);
-      const condition = parseSpecs(product).condition === "used" ? "used" : "new";
+      const condition = specsBySku.get(product.sku).condition === "used" ? "used" : "new";
       return `    <item>
       <g:id>${esc(product.sku)}</g:id>
       <g:title>${esc(title)}</g:title>

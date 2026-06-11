@@ -1640,6 +1640,44 @@ td {
   text-decoration: underline;
 }
 
+.seo-faq details {
+  margin-top: 10px;
+  padding: 4px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.seo-faq summary {
+  padding: 10px 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.seo-faq details p {
+  margin: 0 0 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.article-table {
+  width: 100%;
+  margin: 14px 0;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.article-table th,
+.article-table td {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.article-table thead th {
+  background: var(--surface-2);
+}
+
 @media (max-width: 720px) {
   .seo-product-hero {
     grid-template-columns: 1fr;
