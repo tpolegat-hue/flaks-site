@@ -11,3 +11,5 @@ flaks-screenshot.png
 flaks-screenshot-*.png
 Thumbs.db
 .DS_Store
+.claude/
+seo-spec.test.mjs

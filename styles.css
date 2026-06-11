@@ -1510,3 +1510,142 @@ td {
     transform: none !important;
   }
 }
+
+/* ---- SEO product page: breadcrumb, media, spec table, related ---- */
+.seo-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: clamp(14px, 3vw, 26px) 0 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.seo-breadcrumb a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.seo-breadcrumb a:hover {
+  color: var(--ink);
+}
+
+.seo-breadcrumb [aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.seo-product-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 44px);
+  align-items: start;
+  padding-top: clamp(16px, 3vw, 30px);
+  max-width: 1040px;
+}
+
+.seo-product-media {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.seo-product-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.seo-product-info h1 {
+  font-size: clamp(24px, 3.4vw, 40px);
+  line-height: 1.1;
+  margin: 6px 0 0;
+}
+
+.spec-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+
+.spec-table th,
+.spec-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.spec-table th {
+  width: 42%;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.spec-table td {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.spec-table tr:last-child th,
+.spec-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.seo-prose p {
+  line-height: 1.6;
+}
+
+.seo-related ul {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.seo-related li a {
+  display: block;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.seo-related li a:hover {
+  border-color: var(--accent);
+}
+
+.seo-related-all {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--accent-2);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.seo-related-all:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .seo-product-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .seo-product-media {
+    max-width: 360px;
+  }
+}

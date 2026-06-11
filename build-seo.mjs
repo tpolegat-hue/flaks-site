@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { parseSpecs, buildSpecRows, buildDescription, buildMetaDescription } from "./seo-spec.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const siteUrl = (globalThis.process?.env?.SITE_URL || "https://www.flaks.com.ua").replace(/\/$/, "");
@@ -56,6 +57,15 @@ function absoluteAssetUrl(assetPath) {
   return `${siteUrl}${normalizedPath}`;
 }
 
+function merchantImageRelPath(product) {
+  const rel =
+    merchantImages.products?.[product.sku] ||
+    merchantImages.categoryFallbacks?.[product.categorySlug] ||
+    "/assets/flaks-og.jpg";
+  if (/^https?:\/\//i.test(rel)) return rel;
+  return `..${rel.startsWith("/") ? rel : `/${rel}`}`;
+}
+
 function merchantImageUrl(product) {
   return absoluteAssetUrl(
     merchantImages.products?.[product.sku] ||
@@ -63,6 +73,8 @@ function merchantImageUrl(product) {
       "/assets/flaks-og.jpg",
   );
 }
+
+const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
   if (entry.isFile() && entry.name.endsWith(".html")) {
@@ -154,7 +166,9 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <link rel="alternate" hreflang="x-default" href="${esc(canonicalUrl)}">
     <link rel="icon" type="image/png" href="../assets/favicon-32.png">
     <link rel="stylesheet" href="../styles.css">
-    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+    ${(Array.isArray(jsonLd) ? jsonLd : [jsonLd])
+      .map((entry) => `<script type="application/ld+json">${JSON.stringify(entry)}</script>`)
+      .join("\n    ")}
   </head>
   <body data-title-uk="${esc(title)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(description)}" data-description-ru="${esc(descriptionRu)}">
     <header class="topbar">
@@ -192,23 +206,48 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
 </html>`;
 }
 
-function productJsonLd(product) {
+function productJsonLd(product, specs) {
+  const brand = specs.brand || "FLAKS";
+  const material = specs.materials.map((m) => m.code).join(" / ");
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.nameUa || product.nameRu,
     alternateName: product.nameRu,
     sku: product.sku,
-    brand: { "@type": "Brand", name: "FLAKS" },
+    mpn: product.sku,
+    brand: { "@type": "Brand", name: brand },
+    ...(material ? { material } : {}),
     category: product.categoryUa || product.categoryRu,
-    description: `${product.nameUa || product.nameRu}. Наявність: ${product.qty} шт. Ціна без ПДВ: ${product.price} UAH.`,
+    image: merchantImageUrl(product),
+    description: buildDescription(product, specs, "ua"),
     offers: {
       "@type": "Offer",
       priceCurrency: "UAH",
       price: price(product.price),
+      priceValidUntil,
+      itemCondition: specs.condition === "used" ? "https://schema.org/UsedCondition" : "https://schema.org/NewCondition",
       availability: product.qty > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       url: `${siteUrl}/products/${slugProduct(product)}`,
+      seller: { "@type": "Organization", name: "FLAKS", telephone: "+380675453115", email: "tpolegat@gmail.com" },
     },
+  };
+}
+
+function breadcrumbJsonLd(product) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Каталог FLAKS", item: `${siteUrl}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.categoryUa || product.categoryRu,
+        item: `${siteUrl}/catalog/${product.categorySlug}.html`,
+      },
+      { "@type": "ListItem", position: 3, name: product.nameUa || product.nameRu, item: `${siteUrl}/products/${slugProduct(product)}` },
+    ],
   };
 }
 
@@ -267,7 +306,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const pageSuffixUk = pageNumber > 1 ? `, сторінка ${pageNumber}` : "";
     const pageSuffixRu = pageNumber > 1 ? `, страница ${pageNumber}` : "";
 
-    const title = `${category.ua} / ${category.ru} купити в Україні${pageSuffixUk} | FLAKS`;
+    const title = `${category.ua} — купити в Україні${pageSuffixUk} | FLAKS`;
     const description = `${category.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
     const titleRu = `${category.ru} купить в Украине${pageSuffixRu} | FLAKS`;
     const descriptionRu = `${category.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
@@ -299,33 +338,108 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
 
 await writeBatched(categoryPageWrites, ({ fileName, html }) => fs.writeFile(path.join(categoryDir, fileName), html, "utf8"), 50);
 
+// Index products by category for internal linking ("related products").
+const byCategory = new Map();
+for (const product of data.products) {
+  if (!byCategory.has(product.categorySlug)) byCategory.set(product.categorySlug, []);
+  byCategory.get(product.categorySlug).push(product);
+}
+const catPos = new Map();
+for (const arr of byCategory.values()) arr.forEach((product, index) => catPos.set(product.sku, index));
+
+function bilingual(uk, ru) {
+  return `<span data-lang-content="uk">${esc(uk)}</span><span data-lang-content="ru" hidden>${esc(ru)}</span>`;
+}
+
+function breadcrumbHtml(product) {
+  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(product.categoryUa, product.categoryRu)}</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">${bilingual(product.nameUa, product.nameRu)}</span>
+    </nav>`;
+}
+
+function specTableHtml(rows) {
+  const body = rows
+    .map((row) => `<tr><th scope="row">${bilingual(row.labelUa, row.labelRu)}</th><td>${bilingual(row.valueUa, row.valueRu)}</td></tr>`)
+    .join("");
+  return `<section class="content-section">
+      <h2>${bilingual("Характеристики", "Характеристики")}</h2>
+      <table class="spec-table"><tbody>${body}</tbody></table>
+    </section>`;
+}
+
+function descriptionBlockHtml(product, specs) {
+  return `<section class="content-section seo-prose">
+      <h2>${bilingual("Опис", "Описание")}</h2>
+      <p>${bilingual(buildDescription(product, specs, "ua"), buildDescription(product, specs, "ru"))}</p>
+    </section>`;
+}
+
+function relatedHtml(product) {
+  const siblings = byCategory.get(product.categorySlug) || [];
+  const index = catPos.get(product.sku) ?? 0;
+  const picks = [...siblings.slice(Math.max(0, index - 4), index), ...siblings.slice(index + 1, index + 5)].slice(0, 8);
+  if (!picks.length) return "";
+  const items = picks
+    .map((s) => `<li><a href="../products/${slugProduct(s)}" data-keep-lang>${bilingual(s.nameUa, s.nameRu)}</a></li>`)
+    .join("");
+  return `<section class="content-section seo-related">
+      <h2>${bilingual("Схожі товари", "Похожие товары")}</h2>
+      <ul>${items}</ul>
+      <a class="seo-related-all" href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(
+        `Усі товари категорії «${product.categoryUa}»`,
+        `Все товары категории «${product.categoryRu}»`,
+      )}</a>
+    </section>`;
+}
+
 const productPageWrites = [];
 
 for (const product of data.products) {
-  const title = `${product.nameUa} купити | FLAKS`;
-  const description = `${product.nameUa}. ${product.nameRu}. Ціна ${product.price} UAH без ПДВ, наявність ${product.qty} шт.`;
-  const titleRu = `${product.nameRu} купить | FLAKS`;
-  const descriptionRu = `${product.nameRu}. ${product.nameUa}. Цена ${product.price} UAH без НДС, наличие ${product.qty} шт.`;
-  const body = `<section class="seo-hero">
-      <p class="eyebrow"><span data-lang-content="uk">${esc(product.categoryUa)}</span><span data-lang-content="ru" hidden>${esc(product.categoryRu)}</span></p>
-      <h1><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></h1>
-      <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
-      <div class="seo-product-facts">
-        <strong>${esc(product.price)} UAH</strong>
-        <span><span data-lang-content="uk">без ПДВ</span><span data-lang-content="ru" hidden>без НДС</span></span>
-        <span><span data-lang-content="uk">Наявність</span><span data-lang-content="ru" hidden>Наличие</span>: ${esc(product.qty)} шт.</span>
-        <span><span data-lang-content="uk">Код</span><span data-lang-content="ru" hidden>Код</span>: ${esc(product.sku)}</span>
+  const specs = parseSpecs(product);
+  const title = `${product.nameUa} купити в Україні | FLAKS`;
+  const titleRu = `${product.nameRu} купить в Украине | FLAKS`;
+  const description = buildMetaDescription(product, specs, "ua");
+  const descriptionRu = buildMetaDescription(product, specs, "ru");
+  const body = `${breadcrumbHtml(product)}
+    <section class="seo-hero seo-product-hero">
+      <div class="seo-product-media">
+        <img src="${esc(merchantImageRelPath(product))}" alt="${esc(product.nameUa)}" loading="lazy" width="360" height="360">
       </div>
-      <div class="hero-actions">
-        <button class="cart-add-button" type="button" ${cartAttrs(product)}></button>
-        <a class="secondary-button" href="tel:+380675453115"><span data-lang-content="uk">Зателефонувати</span><span data-lang-content="ru" hidden>Позвонить</span></a>
+      <div class="seo-product-info">
+        <p class="eyebrow">${bilingual(product.categoryUa, product.categoryRu)}</p>
+        <h1>${bilingual(product.nameUa, product.nameRu)}</h1>
+        <div class="seo-product-facts">
+          <strong>${esc(product.price)} UAH</strong>
+          <span>${bilingual("без ПДВ", "без НДС")}</span>
+          <span>${bilingual("Наявність", "Наличие")}: ${esc(product.qty)} шт.</span>
+          <span>${bilingual("Код", "Код")}: ${esc(product.sku)}</span>
+        </div>
+        <div class="hero-actions">
+          <button class="cart-add-button" type="button" ${cartAttrs(product)}></button>
+          <a class="secondary-button" href="tel:+380675453115">${bilingual("Зателефонувати", "Позвонить")}</a>
+        </div>
       </div>
-    </section>`;
+    </section>
+    ${descriptionBlockHtml(product, specs)}
+    ${specTableHtml(buildSpecRows(product, specs))}
+    ${relatedHtml(product)}`;
 
   const productUrl = `${siteUrl}/products/${slugProduct(product)}`;
   productPageWrites.push({
     fileName: slugProduct(product),
-    html: page(title, description, body, productJsonLd(product), productUrl, titleRu, descriptionRu),
+    html: page(
+      title,
+      description,
+      body,
+      [productJsonLd(product, specs), breadcrumbJsonLd(product)],
+      productUrl,
+      titleRu,
+      descriptionRu,
+    ),
   });
   productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
 }
@@ -476,6 +590,7 @@ function merchantFeed(products) {
       const title = merchantTitle(product);
       const imageUrl = merchantImageUrl(product);
       const description = merchantDescription(product);
+      const condition = parseSpecs(product).condition === "used" ? "used" : "new";
       return `    <item>
       <g:id>${esc(product.sku)}</g:id>
       <g:title>${esc(title)}</g:title>
@@ -484,7 +599,7 @@ function merchantFeed(products) {
       <g:image_link>${esc(imageUrl)}</g:image_link>
       <g:availability>in_stock</g:availability>
       <g:price>${price(product.price)} UAH</g:price>
-      <g:condition>new</g:condition>
+      <g:condition>${condition}</g:condition>
       <g:google_product_category>${esc(merchantGoogleProductCategory(product))}</g:google_product_category>
       <g:mpn>${esc(product.sku)}</g:mpn>
       ${merchantBrand(product) ? `<g:brand>${esc(merchantBrand(product))}</g:brand>` : ""}
