@@ -418,4 +418,13 @@ Set-Content -LiteralPath (Join-Path $out "data.js") -Value ("window.FLAKS_DATA =
 
 Write-Host "Generated $($products.Count) products in $($categories.Count) categories."
 
+# Re-derive UA fields with the authoritative map in refresh-data-ua.mjs
+# (the inline Convert-ToUa above is only a first pass). Note: the node
+# script reads data.js next to itself, i.e. the repo-root copy.
+if ((Resolve-Path $out).Path -eq (Resolve-Path $PSScriptRoot).Path) {
+  & node (Join-Path $PSScriptRoot "refresh-data-ua.mjs") --write
+} else {
+  Write-Warning "OutDir differs from script root; run 'node refresh-data-ua.mjs --write' against $out\data.js manually."
+}
+
 
