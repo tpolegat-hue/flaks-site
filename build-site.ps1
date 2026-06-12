@@ -42,7 +42,9 @@ function To-Number($value) {
 
 function Normalize-Text([string]$text) {
   if ($null -eq $text) { return "" }
-  return (($text -replace "\s+", " ").Trim())
+  # Collapse whitespace and replace the legacy backslash separator with a
+  # forward slash (м\р -> м/р, к\х -> к/х, inch fractions 5\8 -> 5/8).
+  return ((($text -replace "\s+", " ").Trim()) -replace "\\", "/")
 }
 
 function Convert-ToUa([string]$text) {

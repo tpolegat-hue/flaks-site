@@ -369,6 +369,11 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
       <strong>FLAKS</strong>
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
       <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Повернутися до каталогу</span><span data-lang-content="ru" hidden>Вернуться в каталог</span></a>
+      <a href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+      <a href="../returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
+      <a href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
+      <a href="../privacy.html" data-keep-lang><span data-lang-content="uk">Конфіденційність</span><span data-lang-content="ru" hidden>Конфиденциальность</span></a>
+      <span>ФОП Пелюхня Р. Н. · ІПН 2393311016</span>
     </footer>
     <script src="../assets/seo-lang-switch.js"></script>
     <script src="../assets/cart.js"></script>
@@ -445,7 +450,9 @@ const pageUrls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
   { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
+  { loc: `${siteUrl}/returns.html`, priority: "0.5" },
   { loc: `${siteUrl}/contacts.html`, priority: "0.7" },
+  { loc: `${siteUrl}/privacy.html`, priority: "0.3" },
   { loc: `${siteUrl}/articles`, priority: "0.8" },
   { loc: `${siteUrl}/articles/yak-pidibraty-metalorizalnyi-instrument.html`, priority: "0.7" },
   { loc: `${siteUrl}/articles/narizannya-rizby-mitchykom.html`, priority: "0.7" },

@@ -620,8 +620,15 @@ const MAP = [
   ["булатованийв", "булатований в"],
 ];
 
+// Normalize the raw RU source: collapse whitespace and replace the legacy
+// backslash separator with a forward slash (м\р -> м/р, к\х -> к/х, inch
+// fractions 5\8 -> 5/8). Applied to both RU and UA fields.
+function normalizeRu(text) {
+  return String(text ?? "").replace(/\s+/g, " ").trim().split("\\").join("/");
+}
+
 function convertToUa(text) {
-  let result = String(text ?? "").replace(/\s+/g, " ").trim();
+  let result = normalizeRu(text);
   for (const [from, to] of MAP) result = result.split(from).join(to);
   return result;
 }
@@ -633,6 +640,11 @@ const data = JSON.parse(raw.replace(/^﻿?window\.FLAKS_DATA\s*=\s*/, "").replac
 
 let changedNames = 0;
 for (const p of data.products) {
+  // Normalize the RU source itself (backslash -> slash) before deriving UA,
+  // so nameRu and nameUa stay consistent.
+  p.nameRu = normalizeRu(p.nameRu);
+  p.sectionRu = normalizeRu(p.sectionRu);
+  p.categoryRu = normalizeRu(p.categoryRu);
   const ua = convertToUa(p.nameRu);
   if (ua !== p.nameUa) changedNames++;
   p.nameUa = ua;
@@ -641,6 +653,7 @@ for (const p of data.products) {
 }
 let changedCats = 0;
 for (const c of data.categories) {
+  c.ru = normalizeRu(c.ru);
   const ua = convertToUa(c.ru);
   if (ua !== c.ua) changedCats++;
   c.ua = ua;
