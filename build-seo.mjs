@@ -351,6 +351,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
         <a class="contact-link" href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
         <a class="contact-link" href="../about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
         <a class="contact-link" href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+        <a class="contact-link" href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
         <a class="contact-link" href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
         <a class="contact-link" href="../articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
@@ -370,10 +371,11 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
       <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Повернутися до каталогу</span><span data-lang-content="ru" hidden>Вернуться в каталог</span></a>
       <a href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+      <a href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
       <a href="../returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
       <a href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
       <a href="../privacy.html" data-keep-lang><span data-lang-content="uk">Конфіденційність</span><span data-lang-content="ru" hidden>Конфиденциальность</span></a>
-      <span>ФОП Пелюхня Р. Н. · ІПН 2393311016</span>
+      <span>+380 67 545 31 15 · tpolegat@gmail.com</span>
     </footer>
     <script src="../assets/seo-lang-switch.js"></script>
     <script src="../assets/cart.js"></script>
@@ -450,6 +452,7 @@ const pageUrls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
   { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
+  { loc: `${siteUrl}/payment.html`, priority: "0.6" },
   { loc: `${siteUrl}/returns.html`, priority: "0.5" },
   { loc: `${siteUrl}/contacts.html`, priority: "0.7" },
   { loc: `${siteUrl}/privacy.html`, priority: "0.3" },
