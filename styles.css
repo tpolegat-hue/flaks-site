@@ -1019,6 +1019,13 @@ td {
   display: none;
 }
 
+/* Hidden language variants must never render, even when a layout rule
+   (e.g. .seo-pagination span { display: inline-flex }) sets display on
+   descendant spans and would otherwise override the [hidden] attribute. */
+[data-lang-content][hidden] {
+  display: none !important;
+}
+
 .seo-hero p {
   max-width: 780px;
   color: var(--muted);
