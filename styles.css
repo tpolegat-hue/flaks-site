@@ -1075,9 +1075,20 @@ td {
   text-decoration: none;
 }
 
-.seo-pagination > span:first-child {
+/* The "Сторінка X з Y" caption must read as a label, not as a clickable page
+   button — otherwise it looks like an extra (empty) first page before "1".
+   The label wraps inner uk/ru spans, so strip the pill styling from both. */
+.seo-pagination > span:first-child,
+.seo-pagination > span:first-child span {
   color: var(--muted);
   font-weight: 700;
+  border: 0;
+  background: none;
+  min-height: 0;
+  padding: 0;
+}
+.seo-pagination > span:first-child {
+  margin-right: 6px;
 }
 
 .seo-pagination [aria-current="page"] {

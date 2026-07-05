@@ -513,7 +513,6 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
         <h1><span data-lang-content="uk">${esc(category.ua)}</span><span data-lang-content="ru" hidden>${esc(category.ru)}</span></h1>
         <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
       </section>
-      ${isFirstPage ? categorySeoTextHtml(category, stats, products.length, categoriesBySlug) : ""}
       ${pagination(category, pageNumber, totalPages)}
       <section class="seo-table-wrap">
         <p class="seo-note"><span data-lang-content="uk">Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.</span></p>
@@ -522,8 +521,9 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
           <tbody>${rows}</tbody>
         </table>
       </section>
-      ${faq ? faq.html : ""}
-      ${pagination(category, pageNumber, totalPages)}`;
+      ${pagination(category, pageNumber, totalPages)}
+      ${isFirstPage ? categorySeoTextHtml(category, stats, products.length, categoriesBySlug) : ""}
+      ${faq ? faq.html : ""}`;
 
     const href = categoryPageHref(category, pageNumber);
     const categoryUrl = `${siteUrl}${href}`;
