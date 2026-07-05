@@ -8,5 +8,13 @@ flaks-screenshot.png
 build-site.ps1
 build-seo.mjs
 serve.ps1
+refresh-data-ua.mjs
+seo-spec.mjs
+seo-spec.test.mjs
+build-merchant-images.py
+.env.example
+data.js
+flaks-screenshot-updated.png
 articles/template.html
 articles/README.md
+ИСПРАВЛЕНИЯ.md

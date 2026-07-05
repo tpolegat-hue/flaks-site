@@ -1,6 +1,9 @@
 const TO_EMAIL = process.env.ORDER_TO_EMAIL || "tpolegat@gmail.com";
 const RESEND_FROM = process.env.RESEND_FROM || "FLAKS <onboarding@resend.dev>";
 const MIN_ORDER_TOTAL = 2000;
+const MAX_ITEMS = 100;
+const MAX_QTY = 10000;
+const MAX_PRICE = 10_000_000;
 
 function toNumber(value) {
   const number = Number(String(value || "0").replace(",", "."));
@@ -24,16 +27,23 @@ function validateOrder(body) {
     }
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return { ok: false, status: 400, message: "Invalid JSON" };
+  }
+
   const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length > MAX_ITEMS) {
+    return { ok: false, status: 400, message: "Too many items" };
+  }
   const normalizedItems = items
     .map((item) => {
-      const stock = Math.max(0, Math.floor(toNumber(item.stock)));
-      const requestQty = Math.max(1, Math.floor(toNumber(item.requestQty)));
+      const stock = Math.min(Math.max(0, Math.floor(toNumber(item.stock))), MAX_QTY);
+      const requestQty = Math.min(Math.max(1, Math.floor(toNumber(item.requestQty))), MAX_QTY);
       return {
         sku: cleanText(item.sku, 80),
         nameUa: cleanText(item.nameUa, 500),
         nameRu: cleanText(item.nameRu, 500),
-        price: toNumber(item.price),
+        price: Math.min(toNumber(item.price), MAX_PRICE),
         stock,
         requestQty,
       };
@@ -53,10 +63,11 @@ function validateOrder(body) {
     return { ok: false, status: 400, message: "Minimum order total is 2000 UAH" };
   }
 
+  const rawEmail = cleanText(body.customer?.email, 140);
   const customer = {
     name: cleanText(body.customer?.name, 140),
     phone: cleanText(body.customer?.phone, 80),
-    email: cleanText(body.customer?.email, 140),
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : "",
     city: cleanText(body.customer?.city, 140),
     comment: cleanText(body.customer?.comment, 1200),
   };
@@ -83,7 +94,7 @@ function orderText(order) {
     isRu ? "Новая заявка FLAKS" : "Нова заявка FLAKS",
     "",
     `${isRu ? "Язык" : "Мова"}: ${order.language.toUpperCase()}`,
-    `${isRu ? "Дата" : "Дата"}: ${order.createdAt}`,
+    `Дата: ${order.createdAt}`,
     `${isRu ? "Имя" : "Ім'я"}: ${order.customer.name || "-"}`,
     `${isRu ? "Телефон" : "Телефон"}: ${order.customer.phone}`,
     `Email: ${order.customer.email || "-"}`,
@@ -106,6 +117,12 @@ function orderText(order) {
   });
 
   lines.push(`${isRu ? "Итого" : "Разом"}: ${money(order.total)}`);
+  lines.push(
+    "",
+    isRu
+      ? "Внимание: цены и остатки указаны клиентом и требуют проверки по прайсу."
+      : "Увага: ціни та залишки вказані клієнтом і потребують перевірки за прайсом.",
+  );
   return lines.join("\n");
 }
 
@@ -178,6 +195,17 @@ module.exports = async function handler(request, response) {
   }
 
   try {
+    const bodyForCheck = typeof request.body === "string" ? request.body : JSON.stringify(request.body || {});
+    if (bodyForCheck.length > 100_000) {
+      response.status(413).json({ error: "Payload too large" });
+      return;
+    }
+    // honeypot: скрытое поле "website" в форме заполняют только боты
+    if (request.body && request.body.website) {
+      response.status(200).json({ ok: true });
+      return;
+    }
+
     const parsed = validateOrder(request.body || {});
     if (!parsed.ok) {
       response.status(parsed.status).json({ error: parsed.message });

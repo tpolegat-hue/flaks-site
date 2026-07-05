@@ -9,6 +9,7 @@
     uk: {
       cart: "Кошик",
       cartTitle: "Кошик-заявка",
+      close: "Закрити",
       empty: "Кошик порожній. Додайте інструмент із каталогу.",
       add: "Додати в кошик",
       added: "Додано",
@@ -43,6 +44,7 @@
     ru: {
       cart: "Корзина",
       cartTitle: "Корзина-заявка",
+      close: "Закрыть",
       empty: "Корзина пустая. Добавьте инструмент из каталога.",
       add: "Добавить в корзину",
       added: "Добавлено",
@@ -207,7 +209,7 @@
             <p class="eyebrow" data-cart-label="cart">${escapeHtml(t("cart"))}</p>
             <h2 data-cart-label="cartTitle">${escapeHtml(t("cartTitle"))}</h2>
           </div>
-          <button class="icon-button" type="button" data-cart-close aria-label="Close">x</button>
+          <button class="icon-button" type="button" data-cart-close aria-label="${escapeHtml(t("close"))}">×</button>
         </div>
         <div class="cart-drawer-body" data-cart-drawer-body></div>
       </aside>
@@ -255,6 +257,7 @@
         <label><span>${escapeHtml(t("city"))}</span><input name="city" autocomplete="address-level2"></label>
       </div>
       <label><span>${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
+      <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
       <button class="primary-button" type="submit" ${disabled}>${escapeHtml(t("submit"))}</button>
       <p class="cart-status" data-cart-status>${cartTotal(items) < MIN_ORDER_TOTAL && items.length ? escapeHtml(t("minOrderBlock")) : ""}</p>
     </form>`;
@@ -372,6 +375,7 @@
         city: formData.get("city")?.toString().trim(),
         comment: formData.get("comment")?.toString().trim(),
       },
+      website: formData.get("website")?.toString() || "",
       items,
       total,
     };
@@ -385,15 +389,21 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Order failed");
+      if (!response.ok) {
+        let message = "";
+        try { message = (await response.json()).error || ""; } catch {}
+        throw new Error(message || "Order failed");
+      }
       setSuccessMessage(true);
       writeCart([]);
       form.reset();
       renderAll();
       const pageStatus = document.querySelector("[data-cart-page-status]");
       if (pageStatus) pageStatus.textContent = t("sent");
-    } catch {
-      status.textContent = t("failed");
+    } catch (error) {
+      status.textContent = error && error.message && error.message !== "Order failed"
+        ? `${t("failed")} (${error.message})`
+        : t("failed");
       form.querySelector("button[type='submit']").disabled = false;
     }
   }
@@ -435,7 +445,12 @@
       const input = event.target.closest("[data-cart-qty]");
       if (!input) return;
       const max = toNumber(input.getAttribute("max"));
-      if (toNumber(input.value) > max) input.value = String(max);
+      if (max > 0 && toNumber(input.value) > max) input.value = String(max);
+    });
+
+    document.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-cart-qty]");
+      if (!input) return;
       updateQty(input.dataset.cartQty, input.value);
     });
 

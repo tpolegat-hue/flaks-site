@@ -28,6 +28,9 @@ while ($listener.IsListening) {
     $urlPath = [Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart("/"))
     if ([string]::IsNullOrWhiteSpace($urlPath)) { $urlPath = "index.html" }
     $fullPath = [IO.Path]::GetFullPath((Join-Path $rootPath $urlPath))
+    if ([IO.Directory]::Exists($fullPath)) {
+      $fullPath = [IO.Path]::Combine($fullPath, "index.html")
+    }
 
     if (-not $fullPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($fullPath)) {
       $context.Response.StatusCode = 404

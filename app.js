@@ -194,7 +194,7 @@ function sectionName(product) {
 }
 
 function formatQty(qty) {
-  return Number.isInteger(qty) ? String(qty) : qty.toLocaleString("uk-UA");
+  return qty.toLocaleString("uk-UA");
 }
 
 function formatPrice(price) {
@@ -350,7 +350,7 @@ function requestHref(product) {
 
 function productPageHref(product) {
   const suffix = state.lang === "ru" ? "?lang=ru" : "";
-  return `products/${product.sku.toLowerCase()}.html${suffix}`;
+  return `products/${encodeURIComponent(product.sku.toLowerCase())}.html${suffix}`;
 }
 
 function cartButtonAttrs(product) {

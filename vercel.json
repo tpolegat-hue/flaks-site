@@ -33,6 +33,15 @@
       ]
     },
     {
+      "source": "/assets/(.*).js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/data.js",
       "headers": [
         {
@@ -42,7 +51,7 @@
       ]
     },
     {
-      "source": "/data(.*).js",
+      "source": "/data.([a-f0-9]+).js",
       "headers": [
         {
           "key": "Cache-Control",
