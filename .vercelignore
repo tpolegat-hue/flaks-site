@@ -1,4 +1,6 @@
 .git/
+.gitattributes
+.claude/
 .vercel/
 node_modules/
 server.*.log

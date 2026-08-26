@@ -182,7 +182,12 @@
     },
     {
       "source": "/catalog/cat-9be1ed0fbd29.html",
-      "destination": "/catalog/kalibry.html",
+      "destination": "/catalog",
+      "permanent": true
+    },
+    {
+      "source": "/catalog/kalibry.html",
+      "destination": "/catalog",
       "permanent": true
     },
     {

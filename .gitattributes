@@ -1,0 +1,11 @@
+# build-seo.mjs hashes the bytes of data.js to name data.<hash>.js, and writes
+# all 12k generated pages with LF. A CRLF checkout (core.autocrlf=true on
+# Windows) changes that hash and marks every generated file as modified, so the
+# whole repository is normalised to LF in the working tree as well.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

@@ -18,9 +18,39 @@ const contentLastmod = String(data.priceUpdatedAt || data.generatedAt || "2026-0
 await fs.mkdir(productDir, { recursive: true });
 await fs.mkdir(categoryDir, { recursive: true });
 
+// Sync clients (Dropbox/OneDrive) and antivirus scanners briefly lock freshly
+// written files, which surfaces as EBUSY/EPERM/UNKNOWN on the next batch.
+// Retrying a few times is enough; failing the whole build over it is not.
+const TRANSIENT_WRITE_ERRORS = new Set(["EBUSY", "EPERM", "UNKNOWN", "EMFILE", "ENFILE"]);
+
+async function withWriteRetry(operation, attempts = 8) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt >= attempts || !TRANSIENT_WRITE_ERRORS.has(error?.code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 150 * attempt * attempt));
+    }
+  }
+}
+
+// Most pages are byte-identical between runs. Skipping those writes keeps the
+// build fast on slow/synced drives and makes a no-op rebuild produce no diff.
+let writtenCount = 0;
+async function writeIfChanged(filePath, content) {
+  try {
+    if ((await fs.readFile(filePath, "utf8")) === content) return false;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  await fs.writeFile(filePath, content, "utf8");
+  writtenCount++;
+  return true;
+}
+
 async function writeBatched(items, writer, batchSize = 150) {
   for (let index = 0; index < items.length; index += batchSize) {
-    await Promise.all(items.slice(index, index + batchSize).map(writer));
+    await Promise.all(items.slice(index, index + batchSize).map((item) => withWriteRetry(() => writer(item))));
   }
 }
 
@@ -30,7 +60,7 @@ async function refreshVersionedDataFile() {
       await fs.unlink(path.join(root, entry.name));
     }
   }
-  await fs.writeFile(path.join(root, versionedDataFile), dataText, "utf8");
+  await writeIfChanged(path.join(root, versionedDataFile), dataText);
   const indexPath = path.join(root, "index.html");
   const indexHtml = await fs.readFile(indexPath, "utf8");
   const nextHtml = indexHtml.replace(/"data(?:\.[a-f0-9]{12})?\.js"/, `"${versionedDataFile}"`);
@@ -79,6 +109,11 @@ const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOSt
 
 // Parse specs once per product; reused by category stats, product pages and the merchant feed.
 const specsBySku = new Map(data.products.map((product) => [product.sku, parseSpecs(product)]));
+
+// 12032 -> "12 032" (non-breaking thin space keeps the number on one line).
+function groupDigits(value) {
+  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
 
 function ukPlural(n, one, few, many) {
   const mod10 = n % 10;
@@ -249,11 +284,8 @@ function categoryFaq(category, stats, count) {
   return { html, jsonLd };
 }
 
-for (const entry of await fs.readdir(categoryDir, { withFileTypes: true })) {
-  if (entry.isFile() && entry.name.endsWith(".html")) {
-    await fs.unlink(path.join(categoryDir, entry.name));
-  }
-}
+// catalog/ used to be wiped here. It is pruned after generation instead, so
+// unchanged pages keep their bytes and are not rewritten on every build.
 
 function esc(value) {
   return String(value ?? "")
@@ -348,7 +380,7 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
         <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
-        <a class="contact-link" href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
+        <a class="contact-link" href="../catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
         <a class="contact-link" href="../about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
         <a class="contact-link" href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
         <a class="contact-link" href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
@@ -369,7 +401,8 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <footer class="footer">
       <strong>FLAKS</strong>
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
-      <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Повернутися до каталогу</span><span data-lang-content="ru" hidden>Вернуться в каталог</span></a>
+      <a href="../catalog" data-keep-lang><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
+      <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
       <a href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
       <a href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
       <a href="../returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
@@ -417,14 +450,15 @@ function breadcrumbJsonLd(product) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Каталог FLAKS", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Каталог", item: `${siteUrl}/catalog` },
       {
         "@type": "ListItem",
-        position: 2,
+        position: 3,
         name: product.categoryUa || product.categoryRu,
         item: `${siteUrl}/catalog/${product.categorySlug}.html`,
       },
-      { "@type": "ListItem", position: 3, name: product.nameUa || product.nameRu, item: `${siteUrl}/products/${slugProduct(product)}` },
+      { "@type": "ListItem", position: 4, name: product.nameUa || product.nameRu, item: `${siteUrl}/products/${slugProduct(product)}` },
     ],
   };
 }
@@ -450,6 +484,7 @@ function categoryJsonLd(category, products) {
 
 const pageUrls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
+  { loc: `${siteUrl}/catalog`, priority: "0.95" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
   { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
   { loc: `${siteUrl}/payment.html`, priority: "0.6" },
@@ -466,6 +501,8 @@ const pageUrls = [
 const categoryUrls = [];
 const productUrls = [];
 const categoryPageWrites = [];
+// Summary rows for the /catalog hub page, filled while category pages are generated.
+const categorySummaries = [];
 
 const categoriesBySlug = new Map(data.categories.map((item) => [item.slug, item]));
 
@@ -477,6 +514,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const productDate = lastmod(product.updatedAt);
     return productDate > date ? productDate : date;
   }, contentLastmod);
+  categorySummaries.push({ category, count: products.length, minPrice: stats.minPrice, lastmod: categoryLastmod });
 
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
     const pageProducts = products.slice((pageNumber - 1) * categoryPageSize, pageNumber * categoryPageSize);
@@ -508,7 +546,8 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       ? `${category.ru}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Отправка по всей Украине, опт и розница.`
       : `${category.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
     const faq = isFirstPage ? categoryFaq(category, stats, products.length) : null;
-    const body = `<section class="seo-hero">
+    const body = `${categoryBreadcrumbHtml(category, pageNumber)}
+      <section class="seo-hero">
         <p class="eyebrow"><span data-lang-content="uk">Категорія інструменту</span><span data-lang-content="ru" hidden>Категория инструмента</span></p>
         <h1><span data-lang-content="uk">${esc(category.ua)}</span><span data-lang-content="ru" hidden>${esc(category.ru)}</span></h1>
         <p><span data-lang-content="uk">${esc(description)}</span><span data-lang-content="ru" hidden>${esc(descriptionRu)}</span></p>
@@ -534,7 +573,9 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
         title,
         description,
         body,
-        faq ? [categoryJsonLd(category, pageProducts), faq.jsonLd] : categoryJsonLd(category, pageProducts),
+        faq
+          ? [categoryJsonLd(category, pageProducts), categoryBreadcrumbJsonLd(category, pageNumber), faq.jsonLd]
+          : [categoryJsonLd(category, pageProducts), categoryBreadcrumbJsonLd(category, pageNumber)],
         categoryUrl,
         titleRu,
         descriptionRu,
@@ -544,7 +585,131 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
   }
 }
 
-await writeBatched(categoryPageWrites, ({ fileName, html }) => fs.writeFile(path.join(categoryDir, fileName), html, "utf8"), 50);
+await writeBatched(categoryPageWrites, ({ fileName, html }) => writeIfChanged(path.join(categoryDir, fileName), html), 50);
+
+// ---------------------------------------------------------------------------
+// Catalog hub (/catalog) — the crawlable entry point into every category page.
+// Without it the whole catalog is only reachable through sitemap.xml.
+// ---------------------------------------------------------------------------
+const catalogHubUrl = `${siteUrl}/catalog`;
+const catalogTotalCount = categorySummaries.reduce((sum, item) => sum + item.count, 0);
+const catalogMinPriceRaw = categorySummaries.reduce(
+  (min, item) => (item.minPrice > 0 && item.minPrice < min ? item.minPrice : min),
+  Infinity,
+);
+const catalogMinPrice = catalogMinPriceRaw === Infinity ? 0 : catalogMinPriceRaw;
+const catalogLastmod = categorySummaries.reduce((date, item) => (item.lastmod > date ? item.lastmod : date), contentLastmod);
+
+// prefix is "../catalog/" for pages inside catalog/, "catalog/" for the homepage.
+function categoryCardsHtml(prefix) {
+  return categorySummaries
+    .map(
+      ({ category, count, minPrice }) => `<a href="${prefix}${esc(category.slug)}.html" data-keep-lang>
+        <strong>${bilingual(`${category.ua} — від ${minPrice} грн`, `${category.ru} — от ${minPrice} грн`)}</strong>
+        <span>${groupDigits(count)}</span>
+      </a>`,
+    )
+    .join("\n        ");
+}
+
+{
+  const posUa = ukPlural(catalogTotalCount, "позиція", "позиції", "позицій");
+  const posRu = ukPlural(catalogTotalCount, "позиция", "позиции", "позиций");
+  const catUa = ukPlural(categorySummaries.length, "категорія", "категорії", "категорій");
+  const catRu = ukPlural(categorySummaries.length, "категория", "категории", "категорий");
+
+  const title = `Каталог металорізального інструменту — ${categorySummaries.length} ${catUa}, ціна від ${catalogMinPrice} грн | FLAKS`;
+  const titleRu = `Каталог металлорежущего инструмента — ${categorySummaries.length} ${catRu}, цена от ${catalogMinPrice} грн | FLAKS`;
+  const description = `Каталог FLAKS: ${categorySummaries.length} ${catUa} та ${groupDigits(catalogTotalCount)} ${posUa} металорізального інструменту зі складу у Харкові. Мітчики, плашки, свердла, фрези, розгортки та зенкери. Ціни в гривні без ПДВ, від ${catalogMinPrice} грн.`;
+  const descriptionRu = `Каталог FLAKS: ${categorySummaries.length} ${catRu} и ${groupDigits(catalogTotalCount)} ${posRu} металлорежущего инструмента со склада в Харькове. Метчики, плашки, сверла, фрезы, развертки и зенкеры. Цены в гривне без НДС, от ${catalogMinPrice} грн.`;
+
+  const articles = Object.values(ARTICLE_LINKS)
+    .map((article) => `<a href="..${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`)
+    .join(" · ");
+
+  const body = `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">${bilingual("Каталог", "Каталог")}</span>
+    </nav>
+      <section class="seo-hero">
+        <p class="eyebrow">${bilingual("Каталог інструменту", "Каталог инструмента")}</p>
+        <h1>${bilingual("Каталог металорізального інструменту FLAKS", "Каталог металлорежущего инструмента FLAKS")}</h1>
+        <p>${bilingual(description, descriptionRu)}</p>
+      </section>
+      <section class="content-section">
+        <h2>${bilingual("Категорії інструменту", "Категории инструмента")}</h2>
+        <div class="category-links">
+        ${categoryCardsHtml("../catalog/")}
+        </div>
+      </section>
+      <section class="content-section seo-prose">
+        <h2>${bilingual("Як користуватися каталогом", "Как пользоваться каталогом")}</h2>
+        <p>${bilingual(
+          `Кожна категорія — це повний перелік позицій зі складу з кодом, залишком і ціною без ПДВ. Усередині категорії позиції розбиті посторінково, а з картки товару можна перейти до схожих розмірів. Для точного підбору за діаметром, різьбою чи маркою сталі скористайтеся пошуком на головній сторінці.`,
+          `Каждая категория — это полный перечень позиций со склада с кодом, остатком и ценой без НДС. Внутри категории позиции разбиты постранично, а из карточки товара можно перейти к похожим размерам. Для точного подбора по диаметру, резьбе или марке стали воспользуйтесь поиском на главной странице.`,
+        )}</p>
+        <p class="seo-note">${bilingual("Корисні статті:", "Полезные статьи:")} ${articles}</p>
+      </section>`;
+
+  const hubJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: title,
+    description,
+    url: catalogHubUrl,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: categorySummaries.length,
+      itemListElement: categorySummaries.map(({ category }, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `${siteUrl}/catalog/${category.slug}.html`,
+        name: category.ua || category.ru,
+      })),
+    },
+  };
+  const hubBreadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Каталог", item: catalogHubUrl },
+    ],
+  };
+
+  await writeIfChanged(
+    path.join(categoryDir, "index.html"),
+    page(title, description, body, [hubJsonLd, hubBreadcrumbJsonLd], catalogHubUrl, titleRu, descriptionRu),
+  );
+
+  // Prune category pages that no longer exist (renamed slug, removed category).
+  const expected = new Set([...categoryPageWrites.map((entry) => entry.fileName), "index.html"]);
+  const stale = (await fs.readdir(categoryDir)).filter((name) => name.endsWith(".html") && !expected.has(name));
+  for (const name of stale) await fs.unlink(path.join(categoryDir, name));
+  if (stale.length) console.log(`Removed ${stale.length} orphaned category pages: ${stale.join(", ")}`);
+
+  const hubSitemapEntry = pageUrls.find((entry) => entry.loc === catalogHubUrl);
+  if (hubSitemapEntry) hubSitemapEntry.lastmod = catalogLastmod;
+}
+
+// Server-render the homepage category grid between the markers in index.html,
+// so crawlers (and no-JS visitors) reach every category from the front page.
+{
+  const indexPath = path.join(root, "index.html");
+  const indexHtml = await fs.readFile(indexPath, "utf8");
+  const markers = /(<!-- category-links:start -->)[\s\S]*?(<!-- category-links:end -->)/;
+  if (!markers.test(indexHtml)) {
+    throw new Error("index.html: markers <!-- category-links:start/end --> not found; homepage category grid not generated.");
+  }
+  const cards = categoryCardsHtml("catalog/");
+  const nextHtml = indexHtml
+    .replace(markers, (match, start, end) => `${start}\n        ${cards}\n        ${end}`)
+    // Keep the hero counters honest without JS — app.js overwrites them once it loads.
+    .replace(/(<strong id="statProducts">)[^<]*(<\/strong>)/, `$1${groupDigits(catalogTotalCount)}$2`)
+    .replace(/(<strong id="statCategories">)[^<]*(<\/strong>)/, `$1${categorySummaries.length}$2`);
+  if (nextHtml !== indexHtml) await fs.writeFile(indexPath, nextHtml, "utf8");
+}
 
 // Index products by category for internal linking ("related products").
 const byCategory = new Map();
@@ -559,9 +724,44 @@ function bilingual(uk, ru) {
   return `<span data-lang-content="uk">${esc(uk)}</span><span data-lang-content="ru" hidden>${esc(ru)}</span>`;
 }
 
+function categoryBreadcrumbHtml(category, pageNumber) {
+  const self =
+    pageNumber > 1
+      ? `<a href="../catalog/${esc(category.slug)}.html" data-keep-lang>${bilingual(category.ua, category.ru)}</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
+      : `<span aria-current="page">${bilingual(category.ua, category.ru)}</span>`;
+  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
+      <span aria-hidden="true">›</span>
+      ${self}
+    </nav>`;
+}
+
+function categoryBreadcrumbJsonLd(category, pageNumber) {
+  const items = [
+    { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
+    { "@type": "ListItem", position: 2, name: "Каталог", item: `${siteUrl}/catalog` },
+    { "@type": "ListItem", position: 3, name: category.ua || category.ru, item: `${siteUrl}/catalog/${category.slug}.html` },
+  ];
+  if (pageNumber > 1) {
+    items.push({
+      "@type": "ListItem",
+      position: 4,
+      name: `Сторінка ${pageNumber}`,
+      item: `${siteUrl}${categoryPageHref(category, pageNumber)}`,
+    });
+  }
+  return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items };
+}
+
 function breadcrumbHtml(product) {
   return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
       <span aria-hidden="true">›</span>
       <a href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(product.categoryUa, product.categoryRu)}</a>
       <span aria-hidden="true">›</span>
@@ -654,13 +854,51 @@ for (const product of data.products) {
   productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
 }
 
-await writeBatched(productPageWrites, ({ fileName, html }) => fs.writeFile(path.join(productDir, fileName), html, "utf8"));
+await writeBatched(productPageWrites, ({ fileName, html }) => writeIfChanged(path.join(productDir, fileName), html), 50);
+
+// Drop product pages whose SKU is no longer in data.js. Unlike catalog/, this
+// directory is not wiped up front (rewriting 12k files is slower than pruning),
+// so without this step delisted SKUs stay online as orphans.
+{
+  const expected = new Set(productPageWrites.map((entry) => entry.fileName));
+  const stale = (await fs.readdir(productDir)).filter((name) => name.endsWith(".html") && !expected.has(name));
+  for (const name of stale) await fs.unlink(path.join(productDir, name));
+  if (stale.length) console.log(`Removed ${stale.length} orphaned product pages: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""}`);
+}
+
+// Previous lastmod values, so regenerating a page never moves its date backwards:
+// data.js carries older per-product dates than some already published sitemaps,
+// and a receding lastmod is a bad recrawl signal. Set SITEMAP_TOUCH=1 to stamp
+// today on every URL — use it after a template change that really did rewrite
+// every page.
+const previousLastmod = new Map();
+for (const file of ["sitemap-pages.xml", "sitemap-categories.xml", "sitemap-products.xml"]) {
+  try {
+    const xml = await fs.readFile(path.join(root, file), "utf8");
+    for (const match of xml.matchAll(/<loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod>/g)) {
+      previousLastmod.set(match[1], match[2]);
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+const buildDate = new Date().toISOString().slice(0, 10);
+const touchAllSitemaps = globalThis.process?.env?.SITEMAP_TOUCH === "1";
+let newestLastmod = contentLastmod;
+
+function resolveLastmod(url) {
+  const computed = touchAllSitemaps ? buildDate : lastmod(url.lastmod);
+  const previous = previousLastmod.get(url.loc);
+  const value = !touchAllSitemaps && previous && previous > computed ? previous : computed;
+  if (value > newestLastmod) newestLastmod = value;
+  return value;
+}
 
 function sitemapUrlset(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
-  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${lastmod(url.lastmod)}</lastmod><priority>${url.priority}</priority></url>`)
+  .map((url) => `  <url><loc>${esc(url.loc)}</loc><lastmod>${resolveLastmod(url)}</lastmod><priority>${url.priority}</priority></url>`)
   .join("\n")}
 </urlset>
 `;
@@ -835,26 +1073,25 @@ ${items}
 function sitemapIndex(files) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${files.map((file) => `  <sitemap><loc>${siteUrl}/${file}</loc><lastmod>${contentLastmod}</lastmod></sitemap>`).join("\n")}
+${files.map((file) => `  <sitemap><loc>${siteUrl}/${file}</loc><lastmod>${newestLastmod}</lastmod></sitemap>`).join("\n")}
 </sitemapindex>
 `;
 }
 
-await fs.writeFile(path.join(root, "merchant-feed.xml"), merchantFeed(data.products), "utf8");
-await fs.writeFile(path.join(root, "sitemap-pages.xml"), sitemapUrlset(pageUrls), "utf8");
-await fs.writeFile(path.join(root, "sitemap-categories.xml"), sitemapUrlset(categoryUrls), "utf8");
-await fs.writeFile(path.join(root, "sitemap-products.xml"), sitemapUrlset(productUrls), "utf8");
-await fs.writeFile(path.join(root, "sitemap.xml"), sitemapIndex(["sitemap-pages.xml", "sitemap-categories.xml", "sitemap-products.xml"]), "utf8");
-await fs.writeFile(
+await writeIfChanged(path.join(root, "merchant-feed.xml"), merchantFeed(data.products));
+await writeIfChanged(path.join(root, "sitemap-pages.xml"), sitemapUrlset(pageUrls));
+await writeIfChanged(path.join(root, "sitemap-categories.xml"), sitemapUrlset(categoryUrls));
+await writeIfChanged(path.join(root, "sitemap-products.xml"), sitemapUrlset(productUrls));
+await writeIfChanged(path.join(root, "sitemap.xml"), sitemapIndex(["sitemap-pages.xml", "sitemap-categories.xml", "sitemap-products.xml"]));
+await writeIfChanged(
   path.join(root, "robots.txt"),
   `User-agent: *
 Allow: /
 Sitemap: ${siteUrl}/sitemap.xml
 `,
-  "utf8",
 );
 
-await fs.writeFile(
+await writeIfChanged(
   path.join(root, "site.webmanifest"),
   JSON.stringify(
     {
@@ -873,7 +1110,6 @@ await fs.writeFile(
     null,
     2,
   ),
-  "utf8",
 );
 
-console.log(`SEO generated: ${data.categories.length} categories, ${data.products.length} product pages, ${pageUrls.length + categoryUrls.length + productUrls.length} sitemap URLs.`);
+console.log(`SEO generated: ${data.categories.length} categories, ${data.products.length} product pages, ${pageUrls.length + categoryUrls.length + productUrls.length} sitemap URLs, ${writtenCount} files written.`);

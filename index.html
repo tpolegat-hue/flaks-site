@@ -1,6 +1,16 @@
 <!doctype html>
 <html lang="uk">
   <head>
+    <!-- Google tag (gtag.js) — loaded the same way as on the generated catalog and
+         product pages, so pageviews are counted consistently across the site. -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-675L0XL19Y');
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google-site-verification" content="ktStUU9o0Pp1VxKn6AknzUox_oK7NCcKQa6A4uee4-I" />
@@ -100,6 +110,7 @@
       <nav class="top-actions" aria-label="Contacts and language">
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
+        <a class="contact-link" href="catalog" data-i18n="catalog" data-keep-lang>Каталог</a>
         <a class="contact-link" href="about.html" data-i18n="aboutNav" data-keep-lang>Про компанію</a>
         <a class="contact-link" href="delivery.html" data-i18n="deliveryNav" data-keep-lang>Доставка</a>
         <a class="contact-link" href="payment.html" data-i18n="paymentNav" data-keep-lang>Оплата</a>
@@ -137,7 +148,7 @@
       <section class="stats" aria-label="Catalog statistics">
         <div>
           <img src="assets/stat-products-480.jpg" srcset="assets/stat-products-480.jpg 480w, assets/stat-products.jpg 900w" sizes="(max-width: 900px) 100vw, 33vw" alt="" loading="lazy" decoding="async">
-          <strong id="statProducts">12 031</strong>
+          <strong id="statProducts">12 032</strong>
           <span data-i18n="items">позицій</span>
         </div>
         <div>
@@ -193,8 +204,96 @@
         <div class="category-index-head">
           <p class="eyebrow" data-i18n="seoCategories">Категорії інструменту</p>
           <h2 id="categoryIndexTitle" data-i18n="categoryIndexTitle">Швидкий перехід до розділів</h2>
+          <a class="secondary-button" href="catalog" data-i18n="allCategoriesLink" data-keep-lang>Усі категорії</a>
         </div>
-        <div class="category-links" id="categoryLinks"></div>
+        <!-- Server-rendered by build-seo.mjs so crawlers see the category links without JS.
+             app.js re-renders the same list on language change. -->
+        <div class="category-links" id="categoryLinks"><!-- category-links:start -->
+        <a href="catalog/metchiki-mr-metricheskie-pravye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики машинно-ручні метричні праві — від 30 грн</span><span data-lang-content="ru" hidden>Метчики мр метрические правые — от 30 грн</span></strong>
+        <span>1 621</span>
+      </a>
+        <a href="catalog/metchiki-levye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики ліві — від 60 грн</span><span data-lang-content="ru" hidden>Метчики левые — от 60 грн</span></strong>
+        <span>423</span>
+      </a>
+        <a href="catalog/metchiki-mr-cherez-shag.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики машинно-ручні через крок — від 70 грн</span><span data-lang-content="ru" hidden>Метчики мр через шаг — от 70 грн</span></strong>
+        <span>82</span>
+      </a>
+        <a href="catalog/metchiki-g-tr-k-rc-ktr.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики G(Тр),К,RC(Ктр) — від 60 грн</span><span data-lang-content="ru" hidden>Метчики G(Тр),К,RC(Ктр) — от 60 грн</span></strong>
+        <span>192</span>
+      </a>
+        <a href="catalog/metchiki-ruchnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики ручні — від 10 грн</span><span data-lang-content="ru" hidden>Метчики ручные — от 10 грн</span></strong>
+        <span>118</span>
+      </a>
+        <a href="catalog/metchiki-trapetsiya-i-dr.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики трапеція та інші — від 320 грн</span><span data-lang-content="ru" hidden>Метчики трапеция и др — от 320 грн</span></strong>
+        <span>269</span>
+      </a>
+        <a href="catalog/metchiki-gaechnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Мітчики гайкові — від 20 грн</span><span data-lang-content="ru" hidden>Метчики гаечные — от 20 грн</span></strong>
+        <span>477</span>
+      </a>
+        <a href="catalog/plashki.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Плашки — від 20 грн</span><span data-lang-content="ru" hidden>Плашки — от 20 грн</span></strong>
+        <span>545</span>
+      </a>
+        <a href="catalog/sverla-kkh.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла кх — від 80 грн</span><span data-lang-content="ru" hidden>Сверла кх — от 80 грн</span></strong>
+        <span>1 179</span>
+      </a>
+        <a href="catalog/sverla-kkh-tverdosplavnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла кх твердосплавні — від 420 грн</span><span data-lang-content="ru" hidden>Сверла кх твердосплавные — от 420 грн</span></strong>
+        <span>59</span>
+      </a>
+        <a href="catalog/sverla-kkh-kitay.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла кх Китай — від 110 грн</span><span data-lang-content="ru" hidden>Сверла кх Китай — от 110 грн</span></strong>
+        <span>31</span>
+      </a>
+        <a href="catalog/sverla-tskh-srednie.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла цх середні — від 6 грн</span><span data-lang-content="ru" hidden>Сверла цх средние — от 6 грн</span></strong>
+        <span>675</span>
+      </a>
+        <a href="catalog/sverla-tskh-dlinnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла цх довгі — від 20 грн</span><span data-lang-content="ru" hidden>Сверла цх длинные — от 20 грн</span></strong>
+        <span>415</span>
+      </a>
+        <a href="catalog/sverla-tskh-levye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла цх ліві — від 10 грн</span><span data-lang-content="ru" hidden>Сверла цх левые — от 10 грн</span></strong>
+        <span>328</span>
+      </a>
+        <a href="catalog/sverla-tsentrovochnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла центрувальні — від 10 грн</span><span data-lang-content="ru" hidden>Сверла центровочные — от 10 грн</span></strong>
+        <span>52</span>
+      </a>
+        <a href="catalog/sverla-tverdosplavnye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Свердла твердосплавні — від 30 грн</span><span data-lang-content="ru" hidden>Сверла твердосплавные — от 30 грн</span></strong>
+        <span>282</span>
+      </a>
+        <a href="catalog/frezy-kontsevye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Фрези кінцеві — від 10 грн</span><span data-lang-content="ru" hidden>Фрезы концевые — от 10 грн</span></strong>
+        <span>1 024</span>
+      </a>
+        <a href="catalog/frezy-diskovye.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Фрези дискові — від 60 грн</span><span data-lang-content="ru" hidden>Фрезы дисковые — от 60 грн</span></strong>
+        <span>1 686</span>
+      </a>
+        <a href="catalog/frezy-chervyachnye-dolbyaki-t-obr.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Фрези черв&#039;ячні, довбяки, Т-обр — від 72 грн</span><span data-lang-content="ru" hidden>Фрезы червячные, долбяки, Т-обр — от 72 грн</span></strong>
+        <span>624</span>
+      </a>
+        <a href="catalog/razvertki-zenkera-zenkovki.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Розгортки, зенкери, зенківки — від 20 грн</span><span data-lang-content="ru" hidden>Развертки, зенкера, зенковки — от 20 грн</span></strong>
+        <span>1 512</span>
+      </a>
+        <a href="catalog/frezy-tortsevye-i-drugoe.html" data-keep-lang>
+        <strong><span data-lang-content="uk">Фрези торцеві та інше — від 10 грн</span><span data-lang-content="ru" hidden>Фрезы торцевые и другое — от 10 грн</span></strong>
+        <span>438</span>
+      </a>
+        <!-- category-links:end --></div>
       </section>
 
       <section class="popular-searches" aria-labelledby="popularSearchTitle">
@@ -317,6 +416,7 @@
     <footer class="footer">
       <strong>FLAKS</strong>
       <span data-i18n="footerText">Металообробний інструмент з наявності. Ціни в гривні без ПДВ.</span>
+      <a href="catalog" data-i18n="catalog" data-keep-lang>Каталог</a>
       <a href="about.html" data-i18n="aboutNav" data-keep-lang>Про компанію</a>
       <a href="delivery.html" data-i18n="deliveryNav" data-keep-lang>Доставка</a>
       <a href="payment.html" data-i18n="paymentNav" data-keep-lang>Оплата</a>
@@ -330,26 +430,6 @@
 
     <script src="assets/cart.js" defer></script>
     <script src="assets/motion.js" defer></script>
-    <script>
-      (() => {
-        const loadGoogleTag = () => {
-          if (window.__flaksGtagLoaded) return;
-          window.__flaksGtagLoaded = true;
-          window.dataLayer = window.dataLayer || [];
-          window.gtag = function gtag(){ window.dataLayer.push(arguments); };
-          window.gtag("js", new Date());
-          window.gtag("config", "G-675L0XL19Y");
-          const script = document.createElement("script");
-          script.async = true;
-          script.src = "https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y";
-          document.head.appendChild(script);
-        };
-
-        ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
-          window.addEventListener(eventName, loadGoogleTag, { once: true, passive: true });
-        });
-      })();
-    </script>
     <script>
       (() => {
         const scripts = ["data.59709e2c5bb2.js", "app.js"];

@@ -48,6 +48,7 @@ const i18n = {
     diameterHint: "Ф, Ø, d і діаметр шукаються однаково.",
     category: "Категорія",
     allCategories: "Усі категорії",
+    allCategoriesLink: "Усі категорії",
     sort: "Сортування",
     sortRelevance: "За релевантністю",
     sortPriceAsc: "Ціна: від нижчої",
@@ -119,6 +120,7 @@ const i18n = {
     diameterHint: "Ф, Ø, d и диаметр ищутся одинаково.",
     category: "Категория",
     allCategories: "Все категории",
+    allCategoriesLink: "Все категории",
     sort: "Сортировка",
     sortRelevance: "По релевантности",
     sortPriceAsc: "Цена: от низкой",
@@ -412,6 +414,10 @@ function populateCategories() {
 
 function renderCategoryLinks() {
   if (!els.categoryLinks) return;
+  // build-seo.mjs server-renders this grid into index.html with both languages in
+  // data-lang-content spans, so translatePage() already handles switching. Only
+  // build it here if the server-rendered markup is missing.
+  if (els.categoryLinks.querySelector("a")) return;
 
   els.categoryLinks.innerHTML = data.categories
     .filter((cat) => cat.count > 0)
