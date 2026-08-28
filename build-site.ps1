@@ -422,7 +422,10 @@ try {
 
       if ($null -eq $qty -or $null -eq $price) { continue }
 
-      if ($price -le 0) { continue }
+      # The catalogue sells from stock: no price or nothing on the shelf means no
+      # page. A page saying "0 шт" is a dead end for the visitor and a weak
+      # result for search.
+      if ($price -le 0 -or $qty -le 0) { continue }
 
       $nameRu = Normalize-Text $name
       $sectionRu = Normalize-Text $currentSection
