@@ -9,6 +9,7 @@ flaks-*-screenshot.png
 flaks-screenshot.png
 build-site.ps1
 build-seo.mjs
+check-links.mjs
 serve.ps1
 refresh-data-ua.mjs
 seo-spec.mjs

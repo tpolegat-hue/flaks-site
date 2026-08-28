@@ -355,12 +355,23 @@ try {
       $qty = To-Number $cells["B"]
       $price = To-Number $cells["C"]
 
-      if ($null -eq $qty -or $null -eq $price) {
+      # A section header is a row carrying ONLY a name: both the quantity and the
+      # price cells are empty. Rows that have a quantity but no usable price
+      # (empty cell, "переучет", "договорная") are priced-on-request PRODUCTS —
+      # they are skipped, but they must not be mistaken for a section heading.
+      # Testing "-or" here made 123 product names become section names and gave
+      # one of them 588 products; see the section audit in ИСПРАВЛЕНИЯ.md.
+      $hasQtyCell = -not [string]::IsNullOrWhiteSpace($cells["B"])
+      $hasPriceCell = -not [string]::IsNullOrWhiteSpace($cells["C"])
+
+      if (-not $hasQtyCell -and -not $hasPriceCell) {
         if ($name -notmatch "Наименование|Цена|Кол-во") {
           $currentSection = $name
         }
         continue
       }
+
+      if ($null -eq $qty -or $null -eq $price) { continue }
 
       if ($price -le 0) { continue }
 

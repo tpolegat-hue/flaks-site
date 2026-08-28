@@ -13,3 +13,7 @@ Thumbs.db
 .DS_Store
 .claude/
 seo-spec.test.mjs
+# Source price lists stay out of the repo: everything in it is published as
+# static files, so a committed price list would be downloadable from the site.
+*.xlsx
+*.xls
