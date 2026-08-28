@@ -97,7 +97,13 @@ def main() -> int:
     print(f"было : {total_before / 1024 / 1024:.1f} МБ")
     if write:
         print(f"стало: {total_after / 1024 / 1024:.1f} МБ  ({100 - total_after * 100 / total_before:.0f}% экономии)")
-        MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        # newline="\n": the repository is LF-only (see .gitattributes), and the
+        # Windows default would rewrite the manifest with CRLF on every run.
+        MANIFEST.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+            newline="\n",
+        )
         for source in sources:
             source.unlink()
         print("манифест обновлён, исходники удалены")

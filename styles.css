@@ -1666,6 +1666,57 @@ td {
   text-decoration: underline;
 }
 
+/* A product sits in a section and in a category, so it links up to both. */
+.seo-related-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  margin: 0;
+}
+
+/* Sections of a category: the layer between /catalog/<category> and a product. */
+.seo-sections .section-links {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.seo-sections .section-links li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.seo-sections .section-links a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.seo-sections .section-links li:hover {
+  border-color: var(--accent);
+}
+
+.seo-sections .section-links small {
+  flex: 0 0 auto;
+  color: var(--accent-2);
+  font-weight: 800;
+}
+
+/* The section the visitor is already on stays in the list, unlinked. */
+.seo-sections .section-links [aria-current="page"] {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .seo-faq details {
   margin-top: 10px;
   padding: 4px 14px;

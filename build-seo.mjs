@@ -134,6 +134,15 @@ function ukPlural(n, one, few, many) {
   return many;
 }
 
+// Google shows roughly 60-65 characters of a title. Tool names and section
+// headings are long, so take the most commercial phrasing that still fits
+// rather than always appending the same clause and having it cut off mid-word.
+// The last candidate is used as is when nothing fits — the name itself is what
+// identifies the page and is never dropped.
+function fittingTitle(candidates) {
+  return candidates.find((title) => title.length <= 65) ?? candidates[candidates.length - 1];
+}
+
 function categoryStats(products) {
   let minPrice = Infinity;
   const diameters = [];
@@ -520,7 +529,22 @@ function breadcrumbJsonLd(product) {
         name: inLang(product.categoryUa, product.categoryRu),
         item: absUrl(`/catalog/${product.categorySlug}.html`),
       },
-      { "@type": "ListItem", position: 4, name: inLang(product.nameUa, product.nameRu), item: absUrl(`/products/${slugProduct(product)}`) },
+      ...(sectionBySku.get(product.sku)
+        ? [
+            {
+              "@type": "ListItem",
+              position: 4,
+              name: inLang(sectionBySku.get(product.sku).ua, sectionBySku.get(product.sku).ru),
+              item: absUrl(`/catalog/${sectionBySku.get(product.sku).slug}.html`),
+            },
+          ]
+        : []),
+      {
+        "@type": "ListItem",
+        position: sectionBySku.has(product.sku) ? 5 : 4,
+        name: inLang(product.nameUa, product.nameRu),
+        item: absUrl(`/products/${slugProduct(product)}`),
+      },
     ],
   };
 }
@@ -573,6 +597,153 @@ const categorySummaries = [];
 
 const categoriesBySlug = new Map(data.categories.map((item) => [item.slug, item]));
 
+// ---------------------------------------------------------------------------
+// Sections — the layer between a category and a product. They come from the
+// price list itself (sectionRu / sectionUa), so nothing is invented here: the
+// 21 categories are too coarse to land on for a query like "мітчики гайкові".
+// ---------------------------------------------------------------------------
+
+// Same scheme as Slugify in build-site.ps1, so a section slug reads like the
+// category slug it hangs under.
+const SLUG_TRANSLITERATION = {
+  а: "a", б: "b", в: "v", г: "g", ґ: "g", д: "d", е: "e", ё: "e", є: "ye",
+  ж: "zh", з: "z", и: "i", і: "i", ї: "yi", й: "y", к: "k", л: "l", м: "m",
+  н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh",
+  ц: "ts", ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+};
+
+function slugify(text) {
+  let out = "";
+  for (const char of String(text ?? "").toLowerCase()) {
+    if (char in SLUG_TRANSLITERATION) out += SLUG_TRANSLITERATION[char];
+    else if (/[a-z0-9]/.test(char)) out += char;
+    else out += "-";
+  }
+  return out.replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+
+// Section headings run to whole sentences in the price list; past this the slug
+// stops carrying meaning, so cut it back to a word boundary.
+const SECTION_SLUG_MAX = 60;
+function trimSlug(slug) {
+  if (slug.length <= SECTION_SLUG_MAX) return slug;
+  const cut = slug.slice(0, SECTION_SLUG_MAX);
+  const boundary = cut.lastIndexOf("-");
+  return (boundary > 20 ? cut.slice(0, boundary) : cut).replace(/-+$/, "");
+}
+
+// A section earns a page only when it is worth landing on...
+const SECTION_MIN_PRODUCTS = 20;
+// ...and when it is not the category under another name. A section holding
+// nearly the whole category would publish a near-copy of the category page and
+// split the signal between the two.
+const SECTION_MAX_SHARE = 0.85;
+
+// One heading in the price list is a note rather than a name ("полированные").
+// The replacement says what the products under it actually are — all 53 are
+// polished taper-shank end mills.
+const SECTION_LABEL_OVERRIDES = {
+  "поліровані": { ua: "Фрези кінцеві к/х поліровані", ru: "Фрезы концевые к/х полированные" },
+};
+
+function capitalizeFirst(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+const sectionsByCategory = new Map();
+{
+  // Section pages share the catalog/ directory with category pages, so their
+  // file names have to be checked against the ones already spoken for:
+  // "sverla-kkh" plus a section slugged "kitay" would land on the existing
+  // "sverla-kkh-kitay" category.
+  const reserved = new Set(["index.html"]);
+  for (const category of data.categories) {
+    const count = data.products.filter((product) => product.categorySlug === category.slug).length;
+    reserved.add(`${category.slug}.html`);
+    for (let n = 2; n <= Math.ceil(count / categoryPageSize); n++) reserved.add(`${category.slug}-page-${n}.html`);
+  }
+
+  for (const category of data.categories) {
+    const products = data.products.filter((product) => product.categorySlug === category.slug);
+    const groups = new Map();
+    for (const product of products) {
+      const key = product.sectionUa || "";
+      if (!key) continue;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(product);
+    }
+
+    const sections = [];
+    for (const [name, items] of groups) {
+      if (items.length < SECTION_MIN_PRODUCTS) continue;
+      if (items.length / products.length >= SECTION_MAX_SHARE) continue;
+      const override = SECTION_LABEL_OVERRIDES[name];
+      const nameRu = items[0].sectionRu || name;
+      const base = `${category.slug}-${trimSlug(slugify(nameRu))}`;
+      let slug = base;
+      for (let n = 2; reserved.has(`${slug}.html`); n++) slug = `${base}-${n}`;
+      reserved.add(`${slug}.html`);
+      for (let n = 2; n <= Math.ceil(items.length / categoryPageSize); n++) reserved.add(`${slug}-page-${n}.html`);
+      sections.push({
+        slug,
+        ua: override ? override.ua : capitalizeFirst(name),
+        ru: override ? override.ru : capitalizeFirst(nameRu),
+        category,
+        products: items,
+      });
+    }
+    // Biggest first: the list is a menu, and the deepest shelf is the likeliest
+    // destination. Map insertion order would follow the price list instead.
+    sections.sort((a, b) => b.products.length - a.products.length);
+    if (sections.length) sectionsByCategory.set(category.slug, sections);
+  }
+}
+
+// Reverse index, so a product page can link up to the section it belongs to.
+const sectionBySku = new Map();
+for (const sections of sectionsByCategory.values()) {
+  for (const section of sections) {
+    for (const product of section.products) sectionBySku.set(product.sku, section);
+  }
+}
+
+function productRowsHtml(products) {
+  return products
+    .map((product) => `<tr>
+        <td><a href="../products/${slugProduct(product)}"><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></a><small>${esc(product.sku)}</small></td>
+        <td>${esc(product.sku)}</td>
+        <td>${esc(product.qty)}</td>
+        <td>${esc(product.price)} UAH</td>
+        <td><button class="cart-add-button" type="button" ${cartAttrs(product)}></button></td>
+      </tr>`)
+    .join("");
+}
+
+// The table header is identical on category and section pages.
+function productTableHeadHtml() {
+  return `<thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th><th><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span></th></tr></thead>`;
+}
+
+// Links from a category page down to its sections, and from a section page
+// across to its siblings. `current` is left unlinked when given.
+function sectionLinksHtml(categorySlug, current = null) {
+  const sections = sectionsByCategory.get(categorySlug) || [];
+  if (sections.length < 1) return "";
+  const items = sections
+    .map((section) => {
+      const label = bilingual(section.ua, section.ru);
+      const count = `<small>${section.products.length}</small>`;
+      return section.slug === current
+        ? `<li><span aria-current="page">${label}</span> ${count}</li>`
+        : `<li><a href="../catalog/${esc(section.slug)}.html" data-keep-lang>${label}</a> ${count}</li>`;
+    })
+    .join("");
+  return `<section class="content-section seo-sections">
+        <h2>${bilingual("Розділи категорії", "Разделы категории")}</h2>
+        <ul class="section-links">${items}</ul>
+      </section>`;
+}
+
 for (const category of data.categories.filter((item) => item.count > 0)) {
   const products = data.products.filter((product) => product.categorySlug === category.slug);
   const totalPages = Math.max(1, Math.ceil(products.length / categoryPageSize));
@@ -585,15 +756,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
 
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
     const pageProducts = products.slice((pageNumber - 1) * categoryPageSize, pageNumber * categoryPageSize);
-    const rows = pageProducts
-      .map((product) => `<tr>
-        <td><a href="../products/${slugProduct(product)}"><span data-lang-content="uk">${esc(product.nameUa)}</span><span data-lang-content="ru" hidden>${esc(product.nameRu)}</span></a><small>${esc(product.sku)}</small></td>
-        <td>${esc(product.sku)}</td>
-        <td>${esc(product.qty)}</td>
-        <td>${esc(product.price)} UAH</td>
-        <td><button class="cart-add-button" type="button" ${cartAttrs(product)}></button></td>
-      </tr>`)
-      .join("");
+    const rows = productRowsHtml(pageProducts);
     const rangeStart = (pageNumber - 1) * categoryPageSize + 1;
     const rangeEnd = Math.min(pageNumber * categoryPageSize, products.length);
     const pageSuffixUk = pageNumber > 1 ? `, сторінка ${pageNumber}` : "";
@@ -603,10 +766,20 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     // Page 2 and beyond are not landing targets, so they drop the commercial
     // wording and stay inside the length a search result actually shows.
     const title = isFirstPage
-      ? `${category.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`
+      ? fittingTitle([
+          `${category.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`,
+          `${category.ua} — ціна від ${stats.minPrice} грн | FLAKS`,
+          `${category.ua} — купити | FLAKS`,
+          `${category.ua} | FLAKS`,
+        ])
       : `${category.ua}${pageSuffixUk} | FLAKS`;
     const titleRu = isFirstPage
-      ? `${category.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`
+      ? fittingTitle([
+          `${category.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`,
+          `${category.ru} — цена от ${stats.minPrice} грн | FLAKS`,
+          `${category.ru} — купить | FLAKS`,
+          `${category.ru} | FLAKS`,
+        ])
       : `${category.ru}${pageSuffixRu} | FLAKS`;
     const description = isFirstPage
       ? `${category.ua}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
@@ -625,11 +798,12 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       <section class="seo-table-wrap">
         <p class="seo-note"><span data-lang-content="uk">Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.</span><span data-lang-content="ru" hidden>Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.</span></p>
         <table>
-          <thead><tr><th><span data-lang-content="uk">Найменування</span><span data-lang-content="ru" hidden>Наименование</span></th><th>Код</th><th><span data-lang-content="uk">К-сть</span><span data-lang-content="ru" hidden>Кол-во</span></th><th><span data-lang-content="uk">Ціна без ПДВ</span><span data-lang-content="ru" hidden>Цена без НДС</span></th><th><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span></th></tr></thead>
+          ${productTableHeadHtml()}
           <tbody>${rows}</tbody>
         </table>
       </section>
       ${pagination(category, pageNumber, totalPages)}
+      ${isFirstPage ? sectionLinksHtml(category.slug) : ""}
       ${isFirstPage ? categorySeoTextHtml(category, stats, products.length, categoriesBySlug) : ""}
       ${faq ? faq.html : ""}`;
 
@@ -658,6 +832,210 @@ jsonLdLang = "uk";
 
 await writeBatched(
   categoryPageWrites,
+  ({ lang, fileName, html }) => writeIfChanged(path.join(langDir(lang), "catalog", fileName), html),
+  50,
+);
+
+// ---------------------------------------------------------------------------
+// Section pages — one level below a category, flat inside catalog/ because
+// page() assumes a depth of one directory throughout.
+// ---------------------------------------------------------------------------
+const sectionPageWrites = [];
+
+function sectionBreadcrumbHtml(section, pageNumber) {
+  const self =
+    pageNumber > 1
+      ? `<a href="../catalog/${esc(section.slug)}.html" data-keep-lang>${bilingual(section.ua, section.ru)}</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
+      : `<span aria-current="page">${bilingual(section.ua, section.ru)}</span>`;
+  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog/${esc(section.category.slug)}.html" data-keep-lang>${bilingual(section.category.ua, section.category.ru)}</a>
+      <span aria-hidden="true">›</span>
+      ${self}
+    </nav>`;
+}
+
+function sectionBreadcrumbJsonLd(section, pageNumber) {
+  const items = [
+    { "@type": "ListItem", position: 1, name: "FLAKS", item: absUrl("/") },
+    { "@type": "ListItem", position: 2, name: "Каталог", item: absUrl("/catalog") },
+    {
+      "@type": "ListItem",
+      position: 3,
+      name: inLang(section.category.ua, section.category.ru),
+      item: absUrl(`/catalog/${section.category.slug}.html`),
+    },
+    { "@type": "ListItem", position: 4, name: inLang(section.ua, section.ru), item: absUrl(`/catalog/${section.slug}.html`) },
+  ];
+  if (pageNumber > 1) {
+    items.push({
+      "@type": "ListItem",
+      position: 5,
+      name: inLang(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`),
+      item: absUrl(categoryPageHref(section, pageNumber)),
+    });
+  }
+  return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items };
+}
+
+function sectionSeoTextHtml(section, stats, count) {
+  const kind = TOOL_KINDS[stats.kindId];
+  const sizeUa = [];
+  const sizeRu = [];
+  if (stats.threadMin && stats.threadMax && stats.threadMin !== stats.threadMax) {
+    sizeUa.push(`різьби від М${stats.threadMin} до М${stats.threadMax}`);
+    sizeRu.push(`резьбы от М${stats.threadMin} до М${stats.threadMax}`);
+  }
+  if (stats.diaMin && stats.diaMax && stats.diaMin !== stats.diaMax) {
+    sizeUa.push(`діаметри від ${stats.diaMin} до ${stats.diaMax} мм`);
+    sizeRu.push(`диаметры от ${stats.diaMin} до ${stats.diaMax} мм`);
+  }
+  const partsUa = [`${section.ua} зі складу FLAKS у Харкові: ${count} ${ukPlural(count, "позиція", "позиції", "позицій")} для ${kind.purposeUa}.`];
+  const partsRu = [`${section.ru} со склада FLAKS в Харькове: ${count} ${ukPlural(count, "позиция", "позиции", "позиций")} для ${kind.purposeRu}.`];
+  if (sizeUa.length) {
+    partsUa.push(`В асортименті ${sizeUa.join(", ")}.`);
+    partsRu.push(`В ассортименте ${sizeRu.join(", ")}.`);
+  }
+  if (stats.materials.length) {
+    partsUa.push(`Матеріали: ${stats.materials.join(", ")}.`);
+    partsRu.push(`Материалы: ${stats.materials.join(", ")}.`);
+  }
+  if (stats.brands.length) {
+    partsUa.push(`Серед виробників: ${stats.brands.join(", ")}.`);
+    partsRu.push(`Среди производителей: ${stats.brands.join(", ")}.`);
+  }
+  partsUa.push(`Ціни від ${stats.minPrice} грн без ПДВ, відправлення по всій Україні, опт і роздріб, замовлення від 2 000 грн.`);
+  partsRu.push(`Цены от ${stats.minPrice} грн без НДС, отправка по всей Украине, опт и розница, заказ от 2 000 грн.`);
+
+  const links = [
+    `<a href="../catalog/${esc(section.category.slug)}.html" data-keep-lang>${bilingual(
+      `Уся категорія «${section.category.ua}»`,
+      `Вся категория «${section.category.ru}»`,
+    )}</a>`,
+    ...categoryArticleLinks(section.category.slug).map(
+      (article) => `<a href="${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`,
+    ),
+  ];
+
+  return `<section class="content-section seo-prose">
+        <h2>${bilingual(`${section.ua} — асортимент і ціни`, `${section.ru} — ассортимент и цены`)}</h2>
+        <p>${bilingual(partsUa.join(" "), partsRu.join(" "))}</p>
+        <p class="seo-note">${bilingual("Дивіться також:", "Смотрите также:")} ${links.join(" · ")}</p>
+      </section>`;
+}
+
+for (const sections of sectionsByCategory.values()) {
+  for (const section of sections) {
+    const products = section.products;
+    const totalPages = Math.max(1, Math.ceil(products.length / categoryPageSize));
+    const stats = categoryStats(products);
+    const sectionLastmod = products.reduce((date, product) => {
+      const productDate = lastmod(product.updatedAt);
+      return productDate > date ? productDate : date;
+    }, contentLastmod);
+
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+      const pageProducts = products.slice((pageNumber - 1) * categoryPageSize, pageNumber * categoryPageSize);
+      const rangeStart = (pageNumber - 1) * categoryPageSize + 1;
+      const rangeEnd = Math.min(pageNumber * categoryPageSize, products.length);
+      const isFirstPage = pageNumber === 1;
+
+      const title = isFirstPage
+        ? fittingTitle([
+            `${section.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`,
+            `${section.ua} — ціна від ${stats.minPrice} грн | FLAKS`,
+            `${section.ua} — купити | FLAKS`,
+            `${section.ua} | FLAKS`,
+          ])
+        : `${section.ua}, сторінка ${pageNumber} | FLAKS`;
+      const titleRu = isFirstPage
+        ? fittingTitle([
+            `${section.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`,
+            `${section.ru} — цена от ${stats.minPrice} грн | FLAKS`,
+            `${section.ru} — купить | FLAKS`,
+            `${section.ru} | FLAKS`,
+          ])
+        : `${section.ru}, страница ${pageNumber} | FLAKS`;
+      const description = isFirstPage
+        ? `${section.ua}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Розділ категорії «${section.category.ua}», відправлення по всій Україні.`
+        : `${section.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
+      const descriptionRu = isFirstPage
+        ? `${section.ru}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Раздел категории «${section.category.ru}», отправка по всей Украине.`
+        : `${section.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС, заявки через email или телефон.`;
+
+      const body = `${sectionBreadcrumbHtml(section, pageNumber)}
+      <section class="seo-hero">
+        <p class="eyebrow">${bilingual("Розділ каталогу", "Раздел каталога")}</p>
+        <h1>${bilingual(section.ua, section.ru)}</h1>
+        <p>${bilingual(description, descriptionRu)}</p>
+      </section>
+      ${pagination(section, pageNumber, totalPages)}
+      <section class="seo-table-wrap">
+        <p class="seo-note">${bilingual(
+          `Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Для точного підбору використовуйте пошук за назвою, кодом, діаметром ф / Ø та розміром.`,
+          `Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Для точного подбора используйте поиск по названию, коду, диаметру ф / Ø и размеру.`,
+        )}</p>
+        <table>
+          ${productTableHeadHtml()}
+          <tbody>${productRowsHtml(pageProducts)}</tbody>
+        </table>
+      </section>
+      ${pagination(section, pageNumber, totalPages)}
+      ${isFirstPage ? sectionLinksHtml(section.category.slug, section.slug) : ""}
+      ${isFirstPage ? sectionSeoTextHtml(section, stats, products.length) : ""}`;
+
+      const href = categoryPageHref(section, pageNumber);
+      const fileName = pageNumber === 1 ? `${section.slug}.html` : `${section.slug}-page-${pageNumber}.html`;
+
+      for (const lang of LANGUAGES) {
+        jsonLdLang = lang;
+        const structured = [
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: `${inLang(section.ua, section.ru)} | FLAKS`,
+            description: inLang(
+              `Розділ каталогу FLAKS: ${section.ua}. Ціни в гривні без ПДВ, наявність зі складу.`,
+              `Раздел каталога FLAKS: ${section.ru}. Цены в гривне без НДС, наличие со склада.`,
+            ),
+            url: absUrl(href),
+            isPartOf: absUrl(`/catalog/${section.category.slug}.html`),
+            mainEntity: {
+              "@type": "ItemList",
+              numberOfItems: pageProducts.length,
+              itemListElement: pageProducts.slice(0, 100).map((product, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                url: absUrl(`/products/${slugProduct(product)}`),
+                name: inLang(product.nameUa, product.nameRu),
+              })),
+            },
+          },
+          sectionBreadcrumbJsonLd(section, pageNumber),
+        ];
+        sectionPageWrites.push({
+          lang,
+          fileName,
+          html: page(title, description, body, structured, href, titleRu, descriptionRu, lang),
+        });
+        categoryUrls.push({
+          loc: `${siteUrl}${langPrefix(lang)}${href}`,
+          priority: pageNumber === 1 ? "0.7" : "0.5",
+          lastmod: sectionLastmod,
+        });
+      }
+    }
+  }
+}
+jsonLdLang = "uk";
+
+await writeBatched(
+  sectionPageWrites,
   ({ lang, fileName, html }) => writeIfChanged(path.join(langDir(lang), "catalog", fileName), html),
   50,
 );
@@ -762,7 +1140,11 @@ function categoryCardsHtml(prefix) {
   jsonLdLang = "uk";
 
   // Prune category pages that no longer exist (renamed slug, removed category).
-  const expected = new Set([...categoryPageWrites.map((entry) => entry.fileName), "index.html"]);
+  const expected = new Set([
+    ...categoryPageWrites.map((entry) => entry.fileName),
+    ...sectionPageWrites.map((entry) => entry.fileName),
+    "index.html",
+  ]);
   for (const lang of LANGUAGES) {
     const dir = path.join(langDir(lang), "catalog");
     const stale = (await fs.readdir(dir)).filter((name) => name.endsWith(".html") && !expected.has(name));
@@ -902,6 +1284,12 @@ function categoryBreadcrumbJsonLd(category, pageNumber) {
 }
 
 function breadcrumbHtml(product) {
+  const section = sectionBySku.get(product.sku);
+  const sectionCrumb = section
+    ? `<a href="../catalog/${esc(section.slug)}.html" data-keep-lang>${bilingual(section.ua, section.ru)}</a>
+      <span aria-hidden="true">›</span>
+      `
+    : "";
   return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
@@ -909,7 +1297,7 @@ function breadcrumbHtml(product) {
       <span aria-hidden="true">›</span>
       <a href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(product.categoryUa, product.categoryRu)}</a>
       <span aria-hidden="true">›</span>
-      <span aria-current="page">${bilingual(product.nameUa, product.nameRu)}</span>
+      ${sectionCrumb}<span aria-current="page">${bilingual(product.nameUa, product.nameRu)}</span>
     </nav>`;
 }
 
@@ -938,13 +1326,26 @@ function relatedHtml(product) {
   const items = picks
     .map((s) => `<li><a href="../products/${slugProduct(s)}" data-keep-lang>${bilingual(s.nameUa, s.nameRu)}</a></li>`)
     .join("");
+  const section = sectionBySku.get(product.sku);
+  // The section link comes first: it is the closer, more specific listing.
+  const upLinks = [
+    ...(section
+      ? [
+          `<a class="seo-related-all" href="../catalog/${esc(section.slug)}.html" data-keep-lang>${bilingual(
+            `Усі товари розділу «${section.ua}»`,
+            `Все товары раздела «${section.ru}»`,
+          )}</a>`,
+        ]
+      : []),
+    `<a class="seo-related-all" href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(
+      `Усі товари категорії «${product.categoryUa}»`,
+      `Все товары категории «${product.categoryRu}»`,
+    )}</a>`,
+  ];
   return `<section class="content-section seo-related">
       <h2>${bilingual("Схожі товари", "Похожие товары")}</h2>
       <ul>${items}</ul>
-      <a class="seo-related-all" href="../catalog/${esc(product.categorySlug)}.html" data-keep-lang>${bilingual(
-        `Усі товари категорії «${product.categoryUa}»`,
-        `Все товары категории «${product.categoryRu}»`,
-      )}</a>
+      <p class="seo-related-links">${upLinks.join("\n        ")}</p>
     </section>`;
 }
 
@@ -952,8 +1353,11 @@ const productPageWrites = [];
 
 for (const product of data.products) {
   const specs = specsBySku.get(product.sku);
-  const title = `${product.nameUa} купити в Україні | FLAKS`;
-  const titleRu = `${product.nameRu} купить в Украине | FLAKS`;
+  // Tool names carry the specs that identify the item, so they are never cut;
+  // what goes is the marketing clause that would be truncated away anyway. The
+  // brand stays even when nothing fits — a title without it is worth less.
+  const title = fittingTitle([`${product.nameUa} купити в Україні | FLAKS`, `${product.nameUa} | FLAKS`]);
+  const titleRu = fittingTitle([`${product.nameRu} купить в Украине | FLAKS`, `${product.nameRu} | FLAKS`]);
   const description = buildMetaDescription(product, specs, "ua");
   const descriptionRu = buildMetaDescription(product, specs, "ru");
   const body = `${breadcrumbHtml(product)}
