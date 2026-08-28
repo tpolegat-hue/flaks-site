@@ -17,6 +17,8 @@ const categoryPageSize = 120;
 const contentLastmod = String(data.priceUpdatedAt || data.generatedAt || "2026-05-26").slice(0, 10);
 await fs.mkdir(productDir, { recursive: true });
 await fs.mkdir(categoryDir, { recursive: true });
+await fs.mkdir(path.join(root, "ru", "products"), { recursive: true });
+await fs.mkdir(path.join(root, "ru", "catalog"), { recursive: true });
 
 // Sync clients (Dropbox/OneDrive) and antivirus scanners briefly lock freshly
 // written files, which surfaces as EBUSY/EPERM/UNKNOWN on the next batch.
@@ -240,7 +242,9 @@ function categorySeoTextHtml(category, stats, count, categoriesBySlug) {
     .filter(Boolean)
     .map((c) => `<a href="../catalog/${esc(c.slug)}.html" data-keep-lang>${bilingual(c.ua, c.ru)}</a>`);
   const articles = categoryArticleLinks(category.slug)
-    .map((a) => `<a href="..${esc(a.href)}" data-keep-lang>${bilingual(a.ua, a.ru)}</a>`);
+    // Root-absolute: the articles live only at /articles/, and this markup is
+    // reused by both language trees, which sit at different depths.
+    .map((a) => `<a href="${esc(a.href)}" data-keep-lang>${bilingual(a.ua, a.ru)}</a>`);
 
   return `<section class="content-section seo-prose">
         <h2>${bilingual(`${category.ua} — асортимент і ціни`, `${category.ru} — ассортимент и цены`)}</h2>
@@ -283,8 +287,8 @@ function categoryFaq(category, stats, count) {
     "@type": "FAQPage",
     mainEntity: items.map((item) => ({
       "@type": "Question",
-      name: item.qUa,
-      acceptedAnswer: { "@type": "Answer", text: item.aUa },
+      name: inLang(item.qUa, item.qRu),
+      acceptedAnswer: { "@type": "Answer", text: inLang(item.aUa, item.aRu) },
     })),
   };
   return { html, jsonLd };
@@ -300,6 +304,31 @@ function esc(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+// ---------------------------------------------------------------------------
+// Two language trees out of one build. Ukrainian keeps the existing URLs so
+// nothing already indexed moves; Russian is served from the same paths under
+// /ru/. Page bodies are assembled bilingually — every string is a pair of
+// data-lang-content spans — so a single-language document is produced by
+// keeping one span of each pair and unwrapping it. Span contents are escaped,
+// hence never contain "<", which keeps these patterns simple and linear.
+// ---------------------------------------------------------------------------
+const LANGUAGES = ["uk", "ru"];
+const langPrefix = (lang) => (lang === "ru" ? "/ru" : "");
+const langDir = (lang) => (lang === "ru" ? path.join(root, "ru") : root);
+
+// Set for the duration of one page's JSON-LD assembly, so structured data names
+// its own language tree rather than always pointing at the Ukrainian one.
+let jsonLdLang = "uk";
+const absUrl = (pathname) => `${siteUrl}${langPrefix(jsonLdLang)}${pathname}`;
+const inLang = (uk, ru) => (jsonLdLang === "ru" ? ru || uk : uk || ru);
+
+function singleLanguage(html, lang) {
+  const other = lang === "uk" ? "ru" : "uk";
+  return html
+    .replace(new RegExp(`<span data-lang-content="${other}"(?: hidden)?>[^<]*</span>`, "g"), "")
+    .replace(new RegExp(`<span data-lang-content="${lang}"(?: hidden)?>([^<]*)</span>`, "g"), "$1");
 }
 
 function slugProduct(product) {
@@ -347,8 +376,23 @@ function pagination(category, currentPage, totalPages) {
   </nav>`;
 }
 
-function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, descriptionRu = description, lang = "uk", og = {}) {
-  return `<!doctype html>
+// `pathname` is the language-independent path, e.g. "/catalog/plashki.html".
+// Ukrainian keeps it as is; Russian is served from the same path under /ru.
+function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk, descriptionRu = descriptionUk, lang = "uk", og = {}) {
+  const title = lang === "ru" ? titleRu : titleUk;
+  const description = lang === "ru" ? descriptionRu : descriptionUk;
+  // vercel.json sets trailingSlash:false, so the Russian root is /ru, not /ru/.
+  const pathFor = (target) => (target === "ru" ? `/ru${pathname === "/" ? "" : pathname}` : pathname);
+  const canonicalUrl = `${siteUrl}${pathFor(lang)}`;
+  // "/" sits at the tree root, "/catalog/x.html" one directory below it.
+  const depth = pathname === "/" ? 0 : 1;
+  const up = (levels) => (levels === 0 ? "./" : "../".repeat(levels));
+  // Shared files (styles, assets, the hand-written pages) live at the site root,
+  // so the Russian tree needs one extra level to climb out of /ru/.
+  const shared = up(depth + (lang === "ru" ? 1 : 0));
+  // Catalog, products and the home page exist in both trees: stay in this one.
+  const inTree = up(depth);
+  const html = `<!doctype html>
 <html lang="${lang}">
   <head>
     <!-- Google tag (gtag.js) -->
@@ -370,34 +414,38 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <meta property="og:description" content="${esc(description)}">
     <meta property="og:type" content="${esc(og.type || "website")}">
     <meta property="og:site_name" content="FLAKS">
+    <meta property="og:locale" content="${lang === "ru" ? "ru_UA" : "uk_UA"}">
     <meta property="og:url" content="${esc(canonicalUrl)}">
     <meta property="og:image" content="${esc(og.image || `${siteUrl}/assets/flaks-og.jpg`)}">
     <link rel="canonical" href="${esc(canonicalUrl)}">
-    <link rel="icon" type="image/png" href="../assets/favicon-32.png">
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="alternate" hreflang="uk" href="${esc(`${siteUrl}${pathFor("uk")}`)}">
+    <link rel="alternate" hreflang="ru" href="${esc(`${siteUrl}${pathFor("ru")}`)}">
+    <link rel="alternate" hreflang="x-default" href="${esc(`${siteUrl}${pathFor("uk")}`)}">
+    <link rel="icon" type="image/png" href="${shared}assets/favicon-32.png">
+    <link rel="stylesheet" href="${shared}styles.css">
     ${(Array.isArray(jsonLd) ? jsonLd : [jsonLd])
       .map((entry) => `<script type="application/ld+json">${JSON.stringify(entry).replaceAll("<", "\\u003c")}</script>`)
       .join("\n    ")}
   </head>
-  <body data-title-uk="${esc(title)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(description)}" data-description-ru="${esc(descriptionRu)}">
+  <body data-title-uk="${esc(titleUk)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(descriptionUk)}" data-description-ru="${esc(descriptionRu)}">
     <header class="topbar">
-      <a class="brand" href="../index.html" data-keep-lang>
-        <span class="brand-mark"><img src="../assets/icon-192.png" alt=""></span>
+      <a class="brand" href="${inTree}index.html">
+        <span class="brand-mark"><img src="${shared}assets/icon-192.png" alt=""></span>
         <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
-        <a class="contact-link" href="../catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
-        <a class="contact-link" href="../about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
-        <a class="contact-link" href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
-        <a class="contact-link" href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
-        <a class="contact-link" href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
-        <a class="contact-link" href="../articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
+        <a class="contact-link" href="${inTree}catalog"><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
+        <a class="contact-link" href="${shared}about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
+        <a class="contact-link" href="${shared}delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+        <a class="contact-link" href="${shared}payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
+        <a class="contact-link" href="${shared}contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
+        <a class="contact-link" href="${shared}articles" data-keep-lang><span data-lang-content="uk">Статті</span><span data-lang-content="ru" hidden>Статьи</span></a>
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
         <button class="cart-nav-button" type="button" data-cart-open><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span><strong data-cart-count>0</strong></button>
         <div class="lang-switch" role="group" aria-label="Language">
-          <button class="active" type="button" data-lang="uk">UA</button>
-          <button type="button" data-lang="ru">RU</button>
+          <a class="${lang === "uk" ? "active" : ""}" href="${esc(pathFor("uk"))}" hreflang="uk">UA</a>
+          <a class="${lang === "ru" ? "active" : ""}" href="${esc(pathFor("ru"))}" hreflang="ru">RU</a>
         </div>
       </nav>
     </header>
@@ -407,20 +455,25 @@ function page(title, description, body, jsonLd, canonicalUrl, titleRu = title, d
     <footer class="footer">
       <strong>FLAKS</strong>
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
-      <a href="../catalog" data-keep-lang><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
-      <a href="../index.html#catalog" data-keep-lang><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
-      <a href="../delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
-      <a href="../payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
-      <a href="../returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
-      <a href="../contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
-      <a href="../privacy.html" data-keep-lang><span data-lang-content="uk">Конфіденційність</span><span data-lang-content="ru" hidden>Конфиденциальность</span></a>
+      <a href="${inTree}catalog"><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
+      <a href="${inTree}index.html#catalog"><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
+      <a href="${shared}delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
+      <a href="${shared}payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
+      <a href="${shared}returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
+      <a href="${shared}contacts.html" data-keep-lang><span data-lang-content="uk">Контакти</span><span data-lang-content="ru" hidden>Контакты</span></a>
+      <a href="${shared}privacy.html" data-keep-lang><span data-lang-content="uk">Конфіденційність</span><span data-lang-content="ru" hidden>Конфиденциальность</span></a>
       <span>+380 67 545 31 15 · tpolegat@gmail.com</span>
     </footer>
-    <script src="../assets/seo-lang-switch.js"></script>
-    <script src="../assets/cart.js"></script>
-    <script src="../assets/motion.js"></script>
+    <script>
+      // The language of a generated page is fixed by its URL. Remember it so the
+      // hand-written pages (about, cart, articles) open in the same language.
+      try { localStorage.setItem("flaks-lang", "${lang}"); } catch (error) {}
+    </script>
+    <script src="${shared}assets/cart.js"></script>
+    <script src="${shared}assets/motion.js"></script>
   </body>
 </html>`;
+  return singleLanguage(html, lang);
 }
 
 function productJsonLd(product, specs) {
@@ -429,15 +482,15 @@ function productJsonLd(product, specs) {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: product.nameUa || product.nameRu,
-    alternateName: product.nameRu,
+    name: inLang(product.nameUa, product.nameRu),
+    alternateName: inLang(product.nameRu, product.nameUa),
     sku: product.sku,
     mpn: product.sku,
     brand: { "@type": "Brand", name: brand },
     ...(material ? { material } : {}),
-    category: product.categoryUa || product.categoryRu,
+    category: inLang(product.categoryUa, product.categoryRu),
     image: merchantImageUrl(product),
-    description: buildDescription(product, specs, "ua"),
+    description: buildDescription(product, specs, jsonLdLang === "ru" ? "ru" : "ua"),
     offers: {
       "@type": "Offer",
       priceCurrency: "UAH",
@@ -445,7 +498,7 @@ function productJsonLd(product, specs) {
       priceValidUntil,
       itemCondition: specs.condition === "used" ? "https://schema.org/UsedCondition" : "https://schema.org/NewCondition",
       availability: product.qty > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url: `${siteUrl}/products/${slugProduct(product)}`,
+      url: absUrl(`/products/${slugProduct(product)}`),
       seller: { "@type": "Organization", name: "FLAKS", telephone: "+380675453115", email: "tpolegat@gmail.com" },
     },
   };
@@ -456,15 +509,15 @@ function breadcrumbJsonLd(product) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
-      { "@type": "ListItem", position: 2, name: "Каталог", item: `${siteUrl}/catalog` },
+      { "@type": "ListItem", position: 1, name: "FLAKS", item: absUrl("/") },
+      { "@type": "ListItem", position: 2, name: "Каталог", item: absUrl("/catalog") },
       {
         "@type": "ListItem",
         position: 3,
-        name: product.categoryUa || product.categoryRu,
-        item: `${siteUrl}/catalog/${product.categorySlug}.html`,
+        name: inLang(product.categoryUa, product.categoryRu),
+        item: absUrl(`/catalog/${product.categorySlug}.html`),
       },
-      { "@type": "ListItem", position: 4, name: product.nameUa || product.nameRu, item: `${siteUrl}/products/${slugProduct(product)}` },
+      { "@type": "ListItem", position: 4, name: inLang(product.nameUa, product.nameRu), item: absUrl(`/products/${slugProduct(product)}`) },
     ],
   };
 }
@@ -473,16 +526,19 @@ function categoryJsonLd(category, products) {
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${category.ua} / ${category.ru} | FLAKS`,
-    description: `Категорія FLAKS: ${category.ua}. Ціни в гривні без ПДВ, наявність зі складу.`,
+    name: `${inLang(category.ua, category.ru)} | FLAKS`,
+    description: inLang(
+      `Категорія FLAKS: ${category.ua}. Ціни в гривні без ПДВ, наявність зі складу.`,
+      `Категория FLAKS: ${category.ru}. Цены в гривне без НДС, наличие со склада.`,
+    ),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: products.length,
       itemListElement: products.slice(0, 100).map((product, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: `${siteUrl}/products/${slugProduct(product)}`,
-        name: product.nameUa || product.nameRu,
+        url: absUrl(`/products/${slugProduct(product)}`),
+        name: inLang(product.nameUa, product.nameRu),
       })),
     },
   };
@@ -491,6 +547,8 @@ function categoryJsonLd(category, products) {
 const pageUrls = [
   { loc: `${siteUrl}/`, priority: "1.0" },
   { loc: `${siteUrl}/catalog`, priority: "0.95" },
+  { loc: `${siteUrl}/ru`, priority: "0.9" },
+  { loc: `${siteUrl}/ru/catalog`, priority: "0.9" },
   { loc: `${siteUrl}/about.html`, priority: "0.9" },
   { loc: `${siteUrl}/delivery.html`, priority: "0.7" },
   { loc: `${siteUrl}/payment.html`, priority: "0.6" },
@@ -571,27 +629,33 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       ${faq ? faq.html : ""}`;
 
     const href = categoryPageHref(category, pageNumber);
-    const categoryUrl = `${siteUrl}${href}`;
     const fileName = pageNumber === 1 ? `${category.slug}.html` : `${category.slug}-page-${pageNumber}.html`;
-    categoryPageWrites.push({
-      fileName,
-      html: page(
-        title,
-        description,
-        body,
-        faq
-          ? [categoryJsonLd(category, pageProducts), categoryBreadcrumbJsonLd(category, pageNumber), faq.jsonLd]
-          : [categoryJsonLd(category, pageProducts), categoryBreadcrumbJsonLd(category, pageNumber)],
-        categoryUrl,
-        titleRu,
-        descriptionRu,
-      ),
-    });
-    categoryUrls.push({ loc: categoryUrl, priority: pageNumber === 1 ? "0.8" : "0.55", lastmod: categoryLastmod });
+
+    // The body is assembled once, bilingually; page() keeps the active language.
+    for (const lang of LANGUAGES) {
+      jsonLdLang = lang;
+      const structured = [categoryJsonLd(category, pageProducts), categoryBreadcrumbJsonLd(category, pageNumber)];
+      if (faq) structured.push(categoryFaq(category, stats, products.length).jsonLd);
+      categoryPageWrites.push({
+        lang,
+        fileName,
+        html: page(title, description, body, structured, href, titleRu, descriptionRu, lang),
+      });
+      categoryUrls.push({
+        loc: `${siteUrl}${langPrefix(lang)}${href}`,
+        priority: pageNumber === 1 ? "0.8" : "0.55",
+        lastmod: categoryLastmod,
+      });
+    }
   }
 }
+jsonLdLang = "uk";
 
-await writeBatched(categoryPageWrites, ({ fileName, html }) => writeIfChanged(path.join(categoryDir, fileName), html), 50);
+await writeBatched(
+  categoryPageWrites,
+  ({ lang, fileName, html }) => writeIfChanged(path.join(langDir(lang), "catalog", fileName), html),
+  50,
+);
 
 // ---------------------------------------------------------------------------
 // Catalog hub (/catalog) — the crawlable entry point into every category page.
@@ -630,7 +694,7 @@ function categoryCardsHtml(prefix) {
   const descriptionRu = `Каталог FLAKS: ${categorySummaries.length} ${catRu} и ${groupDigits(catalogTotalCount)} ${posRu} металлорежущего инструмента со склада в Харькове. Метчики, плашки, сверла, фрезы, развертки и зенкеры. Цены в гривне без НДС, от ${catalogMinPrice} грн.`;
 
   const articles = Object.values(ARTICLE_LINKS)
-    .map((article) => `<a href="..${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`)
+    .map((article) => `<a href="${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`)
     .join(" · ");
 
   const body = `<nav class="seo-breadcrumb" aria-label="breadcrumb">
@@ -658,42 +722,48 @@ function categoryCardsHtml(prefix) {
         <p class="seo-note">${bilingual("Корисні статті:", "Полезные статьи:")} ${articles}</p>
       </section>`;
 
-  const hubJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: title,
-    description,
-    url: catalogHubUrl,
-    mainEntity: {
-      "@type": "ItemList",
-      numberOfItems: categorySummaries.length,
-      itemListElement: categorySummaries.map(({ category }, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        url: `${siteUrl}/catalog/${category.slug}.html`,
-        name: category.ua || category.ru,
-      })),
-    },
-  };
-  const hubBreadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
-      { "@type": "ListItem", position: 2, name: "Каталог", item: catalogHubUrl },
-    ],
-  };
-
-  await writeIfChanged(
-    path.join(categoryDir, "index.html"),
-    page(title, description, body, [hubJsonLd, hubBreadcrumbJsonLd], catalogHubUrl, titleRu, descriptionRu),
-  );
+  for (const lang of LANGUAGES) {
+    jsonLdLang = lang;
+    const hubJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: inLang(title, titleRu),
+      description: inLang(description, descriptionRu),
+      url: absUrl("/catalog"),
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: categorySummaries.length,
+        itemListElement: categorySummaries.map(({ category }, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: absUrl(`/catalog/${category.slug}.html`),
+          name: inLang(category.ua, category.ru),
+        })),
+      },
+    };
+    const hubBreadcrumbJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "FLAKS", item: absUrl("/") },
+        { "@type": "ListItem", position: 2, name: "Каталог", item: absUrl("/catalog") },
+      ],
+    };
+    await writeIfChanged(
+      path.join(langDir(lang), "catalog", "index.html"),
+      page(title, description, body, [hubJsonLd, hubBreadcrumbJsonLd], "/catalog", titleRu, descriptionRu, lang),
+    );
+  }
+  jsonLdLang = "uk";
 
   // Prune category pages that no longer exist (renamed slug, removed category).
   const expected = new Set([...categoryPageWrites.map((entry) => entry.fileName), "index.html"]);
-  const stale = (await fs.readdir(categoryDir)).filter((name) => name.endsWith(".html") && !expected.has(name));
-  for (const name of stale) await fs.unlink(path.join(categoryDir, name));
-  if (stale.length) console.log(`Removed ${stale.length} orphaned category pages: ${stale.join(", ")}`);
+  for (const lang of LANGUAGES) {
+    const dir = path.join(langDir(lang), "catalog");
+    const stale = (await fs.readdir(dir)).filter((name) => name.endsWith(".html") && !expected.has(name));
+    for (const name of stale) await fs.unlink(path.join(dir, name));
+    if (stale.length) console.log(`Removed ${stale.length} orphaned category pages (${lang}): ${stale.join(", ")}`);
+  }
 
   const hubSitemapEntry = pageUrls.find((entry) => entry.loc === catalogHubUrl);
   if (hubSitemapEntry) hubSitemapEntry.lastmod = catalogLastmod;
@@ -715,6 +785,69 @@ function categoryCardsHtml(prefix) {
     .replace(/(<strong id="statProducts">)[^<]*(<\/strong>)/, `$1${groupDigits(catalogTotalCount)}$2`)
     .replace(/(<strong id="statCategories">)[^<]*(<\/strong>)/, `$1${categorySummaries.length}$2`);
   await writeIfChanged(indexPath, nextHtml);
+}
+
+// Russian home page. index.html cannot simply be copied: its wording is filled in
+// by app.js at runtime, so a crawler would find Ukrainian text under a Russian
+// URL. This is a real Russian page instead — hero, the category grid and the
+// links — with the interactive search left on the main page.
+{
+  const posRu = ukPlural(catalogTotalCount, "позиция", "позиции", "позиций");
+  const posUa = ukPlural(catalogTotalCount, "позиція", "позиції", "позицій");
+  const title = "Металообробний інструмент FLAKS — каталог зі складу";
+  const titleRu = "Металлорежущий инструмент FLAKS — каталог со склада в Харькове";
+  const description = `FLAKS: ${groupDigits(catalogTotalCount)} ${posUa} металорізального інструменту зі складу у Харкові. Мітчики, плашки, свердла, фрези, розгортки. Ціни в гривні без ПДВ.`;
+  const descriptionRu = `FLAKS: ${groupDigits(catalogTotalCount)} ${posRu} металлорежущего инструмента со склада в Харькове. Метчики, плашки, свёрла, фрезы, развёртки. Цены в гривне без НДС, отправка по всей Украине.`;
+
+  const body = `<section class="seo-hero">
+        <p class="eyebrow">${bilingual("Прайс із наявності", "Прайс из наличия")}</p>
+        <h1>${bilingual("Металообробний інструмент FLAKS", "Металлорежущий инструмент FLAKS")}</h1>
+        <p>${bilingual(description, descriptionRu)}</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="catalog">${bilingual("Відкрити каталог", "Открыть каталог")}</a>
+          <a class="secondary-button" href="../index.html#catalog">${bilingual("Пошук по каталогу", "Поиск по каталогу")}</a>
+        </div>
+      </section>
+      <section class="content-section">
+        <h2>${bilingual("Категорії інструменту", "Категории инструмента")}</h2>
+        <div class="category-links">
+        ${categoryCardsHtml("catalog/")}
+        </div>
+      </section>
+      <section class="content-section seo-prose">
+        <h2>${bilingual("Про FLAKS", "О компании FLAKS")}</h2>
+        <p>${bilingual(
+          "FLAKS працює з 1991 року, головний офіс у Харкові. Постачаємо мітчики, плашки, свердла, фрези, розгортки, зенкери та інший металорізальний інструмент по всій Україні — опт і роздріб, замовлення від 2 000 грн.",
+          "FLAKS работает с 1991 года, головной офис в Харькове. Поставляем метчики, плашки, свёрла, фрезы, развёртки, зенкеры и другой металлорежущий инструмент по всей Украине — опт и розница, заказ от 2 000 грн.",
+        )}</p>
+        <p class="seo-note">${bilingual("Корисні статті:", "Полезные статьи:")} ${Object.values(ARTICLE_LINKS)
+          .map((article) => `<a href="${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`)
+          .join(" · ")}</p>
+      </section>`;
+
+  jsonLdLang = "ru";
+  const homeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: titleRu,
+    description: descriptionRu,
+    url: absUrl("/"),
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: categorySummaries.length,
+      itemListElement: categorySummaries.map(({ category }, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: absUrl(`/catalog/${category.slug}.html`),
+        name: category.ru || category.ua,
+      })),
+    },
+  };
+  await writeIfChanged(
+    path.join(root, "ru", "index.html"),
+    page(title, description, body, homeJsonLd, "/", titleRu, descriptionRu, "ru"),
+  );
+  jsonLdLang = "uk";
 }
 
 // Index products by category for internal linking ("related products").
@@ -748,16 +881,16 @@ function categoryBreadcrumbHtml(category, pageNumber) {
 
 function categoryBreadcrumbJsonLd(category, pageNumber) {
   const items = [
-    { "@type": "ListItem", position: 1, name: "FLAKS", item: `${siteUrl}/` },
-    { "@type": "ListItem", position: 2, name: "Каталог", item: `${siteUrl}/catalog` },
-    { "@type": "ListItem", position: 3, name: category.ua || category.ru, item: `${siteUrl}/catalog/${category.slug}.html` },
+    { "@type": "ListItem", position: 1, name: "FLAKS", item: absUrl("/") },
+    { "@type": "ListItem", position: 2, name: "Каталог", item: absUrl("/catalog") },
+    { "@type": "ListItem", position: 3, name: inLang(category.ua, category.ru), item: absUrl(`/catalog/${category.slug}.html`) },
   ];
   if (pageNumber > 1) {
     items.push({
       "@type": "ListItem",
       position: 4,
-      name: `Сторінка ${pageNumber}`,
-      item: `${siteUrl}${categoryPageHref(category, pageNumber)}`,
+      name: inLang(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`),
+      item: absUrl(categoryPageHref(category, pageNumber)),
     });
   }
   return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items };
@@ -842,34 +975,52 @@ for (const product of data.products) {
     ${specTableHtml(buildSpecRows(product, specs))}
     ${relatedHtml(product)}`;
 
-  const productUrl = `${siteUrl}/products/${slugProduct(product)}`;
-  productPageWrites.push({
-    fileName: slugProduct(product),
-    html: page(
-      title,
-      description,
-      body,
-      [productJsonLd(product, specs), breadcrumbJsonLd(product)],
-      productUrl,
-      titleRu,
-      descriptionRu,
-      "uk",
-      { type: "product", image: merchantImageUrl(product) },
-    ),
-  });
-  productUrls.push({ loc: productUrl, priority: "0.6", lastmod: lastmod(product.updatedAt) });
+  const productPath = `/products/${slugProduct(product)}`;
+  for (const lang of LANGUAGES) {
+    jsonLdLang = lang;
+    productPageWrites.push({
+      lang,
+      fileName: slugProduct(product),
+      html: page(
+        title,
+        description,
+        body,
+        [productJsonLd(product, specs), breadcrumbJsonLd(product)],
+        productPath,
+        titleRu,
+        descriptionRu,
+        lang,
+        { type: "product", image: merchantImageUrl(product) },
+      ),
+    });
+    productUrls.push({
+      loc: `${siteUrl}${langPrefix(lang)}${productPath}`,
+      priority: "0.6",
+      lastmod: lastmod(product.updatedAt),
+    });
+  }
 }
+jsonLdLang = "uk";
 
-await writeBatched(productPageWrites, ({ fileName, html }) => writeIfChanged(path.join(productDir, fileName), html), 50);
+await writeBatched(
+  productPageWrites,
+  ({ lang, fileName, html }) => writeIfChanged(path.join(langDir(lang), "products", fileName), html),
+  50,
+);
 
 // Drop product pages whose SKU is no longer in data.js. Unlike catalog/, this
 // directory is not wiped up front (rewriting 12k files is slower than pruning),
 // so without this step delisted SKUs stay online as orphans.
 {
   const expected = new Set(productPageWrites.map((entry) => entry.fileName));
-  const stale = (await fs.readdir(productDir)).filter((name) => name.endsWith(".html") && !expected.has(name));
-  for (const name of stale) await fs.unlink(path.join(productDir, name));
-  if (stale.length) console.log(`Removed ${stale.length} orphaned product pages: ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""}`);
+  for (const lang of LANGUAGES) {
+    const dir = path.join(langDir(lang), "products");
+    const stale = (await fs.readdir(dir)).filter((name) => name.endsWith(".html") && !expected.has(name));
+    for (const name of stale) await fs.unlink(path.join(dir, name));
+    if (stale.length) {
+      console.log(`Removed ${stale.length} orphaned product pages (${lang}): ${stale.slice(0, 5).join(", ")}${stale.length > 5 ? " …" : ""}`);
+    }
+  }
 }
 
 // Previous lastmod values, so regenerating a page never moves its date backwards:

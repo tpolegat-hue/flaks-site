@@ -37,10 +37,17 @@ async function resolveTarget(fromRel, href) {
   return { missing: abs };
 }
 
-const seen = new Set([start]);
-const depth = new Map([[start, 0]]);
+// Both language trees are crawled: Ukrainian from /index.html, Russian from
+// /ru/index.html, since nothing on the Ukrainian side links into /ru except the
+// language switch (which is a root-relative link and resolves fine).
+const entryPoints = [];
+for (const candidate of [start, "ru/index.html"]) {
+  if (await isFile(path.join(root, candidate))) entryPoints.push(candidate);
+}
+const seen = new Set(entryPoints);
+const depth = new Map(entryPoints.map((p) => [p, 0]));
 const broken = [];
-const queue = [start];
+const queue = [...entryPoints];
 
 while (queue.length) {
   const current = queue.shift();
@@ -72,9 +79,11 @@ const report = async (label, prefix) => {
 };
 
 console.log(`Reachable without JavaScript: ${reached.length} pages`);
-const missedCategories = await report("catalog ", "catalog");
-const missedProducts = await report("products", "products");
+const missedCategories = await report("catalog     ", "catalog");
+const missedProducts = await report("products    ", "products");
+const missedRuCategories = await report("ru/catalog  ", "ru/catalog");
+const missedRuProducts = await report("ru/products ", "ru/products");
 console.log(`Broken internal links: ${broken.length}`);
 for (const item of broken.slice(0, 15)) console.log(`  ! ${item}`);
 
-if (broken.length || missedCategories || missedProducts) process.exitCode = 1;
+if (broken.length || missedCategories || missedProducts || missedRuCategories || missedRuProducts) process.exitCode = 1;

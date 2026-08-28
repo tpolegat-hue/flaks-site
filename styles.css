@@ -230,17 +230,25 @@ select {
   background: rgba(16, 26, 35, 0.88);
 }
 
+/* Generated pages fix the language in the URL, so their switch is a pair of
+   links rather than buttons; the hand-written pages still use buttons. */
 .lang-switch button,
+.lang-switch a,
 .view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 42px;
   height: 36px;
   border: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .lang-switch button.active,
+.lang-switch a.active,
 .view-toggle button.active {
   background: var(--accent);
   color: #fff;
