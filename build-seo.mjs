@@ -105,7 +105,15 @@ function merchantImageUrl(product) {
   return absoluteAssetUrl(merchantImagePath(product));
 }
 
-const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+// A year from the date the price data carries, not from "today" — otherwise the
+// build is date-dependent and rewrites all 12k product pages every single day.
+// Falls back to a year from today only if the price file is over a year stale,
+// which would otherwise publish a priceValidUntil in the past.
+const priceValidUntil = (() => {
+  const year = 365 * 24 * 60 * 60 * 1000;
+  const fromData = new Date(`${contentLastmod}T00:00:00Z`).getTime() + year;
+  return new Date(Math.max(fromData, Date.now() + 30 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10);
+})();
 
 // Parse specs once per product; reused by category stats, product pages and the merchant feed.
 const specsBySku = new Map(data.products.map((product) => [product.sku, parseSpecs(product)]));

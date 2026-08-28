@@ -224,18 +224,34 @@ function normalizeSearchText(value) {
     .replaceAll("ї", "и")
     .replaceAll("є", "е")
     .replaceAll("ґ", "г")
+    // Protect decimal separators before punctuation is stripped: without this
+    // "ф 8.5" turned into "ф 8 5" and a search for 8.5 matched anything holding
+    // a stray 8 and a stray 5, including ф 5.8.
+    .replace(/([0-9])[.,]([0-9])/g, "$1\u0000$2")
     .replace(/[.,;:()[\]{}]/g, " ")
+    .replace(/\u0000/g, ".")
     .replace(/[×х]/g, "x")
     .replace(/[øØ⌀]/g, " ф ")
     .replace(/\b(d|dia|diam|diameter)\s*([0-9]+(?:[.,][0-9]+)?)/g, " ф $2 ")
     .replace(/ф\.?\s*([0-9]+(?:[.,][0-9]+)?)/g, " ф $1 ")
     .replace(/\bдиам(?:етр)?\.?\s*([0-9]+(?:[.,][0-9]+)?)/g, " ф $1 ")
     .replace(/([0-9]+),([0-9]+)/g, "$1.$2")
+    // "М 2.0" and "М 2" are the same thread, "ф 10.0" the same diameter.
+    .replace(/([0-9])\.0+(?![0-9])/g, "$1")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    // The price list spells the same thread both ways: "М 10" (292 times) and
+    // "М10" (12). Gluing a short marker to the number it labels — м, g, тр, к,
+    // тип, исп — makes both spellings meet on the same string. "ф" is left
+    // alone: diameters are parsed separately from the raw text.
+    .replace(/(^| )(?!ф )([a-zа-я]{1,4}) (?=[0-9])/g, "$1$2");
 }
 
-function queryTokens(value) {
+// Each entry is a group of interchangeable spellings: the product has to match
+// ONE of them. Latin "m10" and Cyrillic "м10" are the same thread, so putting
+// them in one flat token list (as this used to) demanded both at once and made
+// "М10 Р6М5" match nothing at all.
+function queryTokenGroups(value) {
   const withoutDiameter = String(value || "").replace(
     /(?:ф|ø|Ø|⌀|d|dia|diam|diameter|диам(?:етр)?)\.?\s*[0-9]+(?:[.,][0-9]+)?/gi,
     " ",
@@ -245,13 +261,43 @@ function queryTokens(value) {
 
   return normalized
     .split(/\s+/)
-    .flatMap((token) => {
-      const variants = [token];
-      if (token.startsWith("m")) variants.push(token.replace(/^m/, "м"));
-      if (token.startsWith("м")) variants.push(token.replace(/^м/, "m"));
-      return variants;
-    })
-    .filter((token, index, arr) => token && arr.indexOf(token) === index);
+    .filter(Boolean)
+    .map((token) => {
+      const variants = new Set([token]);
+      if (token.startsWith("m")) variants.add(`м${token.slice(1)}`);
+      if (token.startsWith("м")) variants.add(`m${token.slice(1)}`);
+      return [...variants].map(searchMatcher);
+    });
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Compiled once per query, not once per product.
+function searchMatcher(token) {
+  // A bare number has to match as a whole word, or "8.5" also pulls in 18.5,
+  // 28.5 and 128.5, plus every length and shank dimension containing it.
+  if (/^[0-9]+(?:\.[0-9]+)?$/.test(token)) return { token, kind: "number" };
+  // A size marker is bounded on both sides: "м2" is not "м20" or "м2.5" on the
+  // right, and not "км2" (Морзе taper) or "р9м4к8" (steel grade) on the left.
+  // Written as a leading character class rather than a lookbehind so that older
+  // Safari, which throws on lookbehind, keeps working.
+  if (/^[a-zа-яіїєґ]+[0-9]/.test(token)) {
+    return {
+      token,
+      kind: "size",
+      pattern: new RegExp(`(?:^|[^0-9a-zа-яіїєґ])${escapeRegExp(token)}(?![0-9.])`),
+    };
+  }
+  return { token, kind: "word" };
+}
+
+function matcherHits(matcher, haystack, paddedHaystack) {
+  if (matcher.kind === "number") return paddedHaystack.includes(` ${matcher.token} `);
+  // Padded so a marker at position 0 still has a left boundary to match.
+  if (matcher.kind === "size") return matcher.pattern.test(paddedHaystack);
+  return haystack.includes(matcher.token);
 }
 
 function diameterQueries(value) {
@@ -311,17 +357,19 @@ function diameterMatches(product, diameters) {
   );
 }
 
-function matchScore(product, tokens, diameters) {
+function matchScore(product, tokenGroups, diameters) {
   if (!diameterMatches(product, diameters)) return -1;
-  if (!tokens.length) return diameters.length ? 6 : 0;
+  if (!tokenGroups.length) return diameters.length ? 6 : 0;
   const haystack = productSearchText(product);
+  const paddedHaystack = ` ${haystack} `;
   const name = normalizeSearchText(productName(product));
+  const paddedName = ` ${name} `;
   let score = diameters.length * 10;
 
-  for (const token of tokens) {
-    if (!haystack.includes(token)) return -1;
-    if (name.includes(token)) score += 8;
-    if (haystack.includes(` ${token} `)) score += 3;
+  for (const group of tokenGroups) {
+    if (!group.some((matcher) => matcherHits(matcher, haystack, paddedHaystack))) return -1;
+    if (group.some((matcher) => matcherHits(matcher, name, paddedName))) score += 8;
+    if (group.some((matcher) => paddedHaystack.includes(` ${matcher.token} `))) score += 3;
     score += 1;
   }
 
@@ -433,20 +481,25 @@ function renderCategoryLinks() {
 }
 
 function filteredProducts() {
-  const tokens = queryTokens(state.query);
+  const tokenGroups = queryTokenGroups(state.query);
   const diameters = diameterQueries(state.query);
+  // Scored once here and reused by the sort below: recomputing the score inside
+  // the comparator ran the whole string match twice per comparison.
+  const scores = new Map();
 
-  let list = data.products.filter((product) => {
+  const list = data.products.filter((product) => {
     if (state.stockOnly && product.qty <= 0) return false;
     if (state.category !== "all" && product.categorySlug !== state.category) return false;
-    return matchScore(product, tokens, diameters) >= 0;
+    const score = matchScore(product, tokenGroups, diameters);
+    if (score < 0) return false;
+    scores.set(product, score);
+    return true;
   });
 
-  list = list.slice();
   const byName = (a, b) => productName(a).localeCompare(productName(b), state.lang === "uk" ? "uk" : "ru");
 
-  if (state.sort === "relevance" && (tokens.length || diameters.length)) {
-    list.sort((a, b) => matchScore(b, tokens, diameters) - matchScore(a, tokens, diameters) || byName(a, b));
+  if (state.sort === "relevance" && (tokenGroups.length || diameters.length)) {
+    list.sort((a, b) => scores.get(b) - scores.get(a) || byName(a, b));
   }
   if (state.sort === "priceAsc") list.sort((a, b) => a.price - b.price || byName(a, b));
   if (state.sort === "priceDesc") list.sort((a, b) => b.price - a.price || byName(a, b));
@@ -552,11 +605,16 @@ function bindEvents() {
     button.addEventListener("click", () => setView(button.dataset.view));
   });
 
+  // Every keystroke rescans all 12k products, so hold off until typing pauses.
+  let searchTimer;
   els.search.addEventListener("input", (event) => {
     state.query = event.target.value;
     state.page = 1;
-    updateSearchUrl();
-    render();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      updateSearchUrl();
+      render();
+    }, 150);
   });
 
   els.category.addEventListener("change", (event) => {
