@@ -43,7 +43,7 @@ async function writeIfChanged(filePath, content) {
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
-  await fs.writeFile(filePath, content, "utf8");
+  await withWriteRetry(() => fs.writeFile(filePath, content, "utf8"));
   writtenCount++;
   return true;
 }
@@ -64,9 +64,7 @@ async function refreshVersionedDataFile() {
   const indexPath = path.join(root, "index.html");
   const indexHtml = await fs.readFile(indexPath, "utf8");
   const nextHtml = indexHtml.replace(/"data(?:\.[a-f0-9]{12})?\.js"/, `"${versionedDataFile}"`);
-  if (nextHtml !== indexHtml) {
-    await fs.writeFile(indexPath, nextHtml, "utf8");
-  }
+  await writeIfChanged(indexPath, nextHtml);
 }
 
 await refreshVersionedDataFile();
@@ -716,7 +714,7 @@ function categoryCardsHtml(prefix) {
     // Keep the hero counters honest without JS — app.js overwrites them once it loads.
     .replace(/(<strong id="statProducts">)[^<]*(<\/strong>)/, `$1${groupDigits(catalogTotalCount)}$2`)
     .replace(/(<strong id="statCategories">)[^<]*(<\/strong>)/, `$1${categorySummaries.length}$2`);
-  if (nextHtml !== indexHtml) await fs.writeFile(indexPath, nextHtml, "utf8");
+  await writeIfChanged(indexPath, nextHtml);
 }
 
 // Index products by category for internal linking ("related products").
