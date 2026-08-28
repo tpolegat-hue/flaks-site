@@ -95,10 +95,13 @@ function merchantImagePath(product) {
   );
 }
 
+// Root-absolute: images live only under /assets/, while product pages sit at
+// two different depths (/products/ and /ru/products/). A "../" prefix resolved
+// to /ru/assets/ and broke the photo on every Russian card.
 function merchantImageRelPath(product) {
   const rel = merchantImagePath(product);
   if (/^https?:\/\//i.test(rel)) return rel;
-  return `..${rel.startsWith("/") ? rel : `/${rel}`}`;
+  return rel.startsWith("/") ? rel : `/${rel}`;
 }
 
 function merchantImageUrl(product) {
@@ -597,12 +600,14 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
     const pageSuffixRu = pageNumber > 1 ? `, страница ${pageNumber}` : "";
 
     const isFirstPage = pageNumber === 1;
+    // Page 2 and beyond are not landing targets, so they drop the commercial
+    // wording and stay inside the length a search result actually shows.
     const title = isFirstPage
       ? `${category.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`
-      : `${category.ua} — купити в Україні${pageSuffixUk} | FLAKS`;
+      : `${category.ua}${pageSuffixUk} | FLAKS`;
     const titleRu = isFirstPage
       ? `${category.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`
-      : `${category.ru} купить в Украине${pageSuffixRu} | FLAKS`;
+      : `${category.ru}${pageSuffixRu} | FLAKS`;
     const description = isFirstPage
       ? `${category.ua}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
       : `${category.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ, заявки через email або телефон.`;
