@@ -33,6 +33,7 @@
       phoneRequired: "Вкажіть телефон.",
       stockLimit: "Не можна замовити більше, ніж є на складі.",
       minOrderBlock: "Заявку можна відправити від 2 000 грн.",
+      tooMany: "Забагато заявок з вашої адреси. Спробуйте за кілька хвилин або зателефонуйте нам.",
       submit: "Відправити заявку",
       sending: "Відправляємо...",
       sent: "Заявку відправлено. Ми зв'яжемося з вами найближчим часом.",
@@ -68,6 +69,7 @@
       phoneRequired: "Укажите телефон.",
       stockLimit: "Нельзя заказать больше, чем есть на складе.",
       minOrderBlock: "Заявку можно отправить от 2 000 грн.",
+      tooMany: "Слишком много заявок с вашего адреса. Попробуйте через несколько минут или позвоните нам.",
       submit: "Отправить заявку",
       sending: "Отправляем...",
       sent: "Заявка отправлена. Мы свяжемся с вами в ближайшее время.",
@@ -247,27 +249,56 @@
     <p class="${minimumClass}">${escapeHtml(left > 0 ? `${t("minimum")} ${t("minimumLeft")}: ${money.format(left)}.` : t("minimumReached"))}</p>`;
   }
 
-  function checkoutFormHtml(items) {
-    const disabled = items.length === 0 || cartTotal(items) < MIN_ORDER_TOTAL ? "disabled" : "";
+  // Форма верстается один раз и дальше не пересобирается, поэтому подписи
+  // помечены ключами и переводятся на месте: собери её заново — и всё, что
+  // человек уже вписал, пропадёт.
+  function checkoutFormHtml() {
     return `<form class="cart-form" data-cart-form>
       <div class="form-grid">
-        <label><span>${escapeHtml(t("name"))}</span><input name="name" autocomplete="name"></label>
-        <label><span>${escapeHtml(t("phone"))} *</span><input name="phone" autocomplete="tel" required></label>
-        <label><span>${escapeHtml(t("email"))}</span><input name="email" type="email" autocomplete="email"></label>
-        <label><span>${escapeHtml(t("city"))}</span><input name="city" autocomplete="address-level2"></label>
+        <label><span data-cart-text="name">${escapeHtml(t("name"))}</span><input name="name" autocomplete="name"></label>
+        <label><span data-cart-text="phone" data-cart-text-required>${escapeHtml(t("phone"))} *</span><input name="phone" autocomplete="tel" required></label>
+        <label><span data-cart-text="email">${escapeHtml(t("email"))}</span><input name="email" type="email" autocomplete="email"></label>
+        <label><span data-cart-text="city">${escapeHtml(t("city"))}</span><input name="city" autocomplete="address-level2"></label>
       </div>
-      <label><span>${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
+      <label><span data-cart-text="comment">${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
       <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-      <button class="primary-button" type="submit" ${disabled}>${escapeHtml(t("submit"))}</button>
-      <p class="cart-status" data-cart-status>${cartTotal(items) < MIN_ORDER_TOTAL && items.length ? escapeHtml(t("minOrderBlock")) : ""}</p>
+      <button class="primary-button" type="submit" data-cart-text="submit" disabled>${escapeHtml(t("submit"))}</button>
+      <p class="cart-status" data-cart-status></p>
     </form>`;
   }
 
-  function renderCartSurface(target, mode = "drawer") {
-    const items = readCart();
-    if (!target) return;
+  function translateForm(form) {
+    form.querySelectorAll("[data-cart-text]").forEach((node) => {
+      const label = t(node.dataset.cartText);
+      node.textContent = node.hasAttribute("data-cart-text-required") ? `${label} *` : label;
+    });
+  }
+
+  // Обновляет состояние существующей формы, не трогая введённые значения.
+  function syncCheckoutForm(host, items) {
+    if (!items.length) {
+      host.innerHTML = "";
+      return;
+    }
+    if (!host.querySelector("[data-cart-form]")) host.innerHTML = checkoutFormHtml();
+
+    const form = host.querySelector("[data-cart-form]");
+    translateForm(form);
+    if (form.dataset.cartSubmitting === "1") return;
+
+    const belowMinimum = cartTotal(items) < MIN_ORDER_TOTAL;
+    form.querySelector("button[type='submit']").disabled = belowMinimum;
+
+    // Сообщение о неудачной отправке держится до следующей попытки; всё
+    // остальное место в строке статуса занимает подсказка про минимум.
+    const status = form.querySelector("[data-cart-status]");
+    if (status.dataset.cartSticky === "1") return;
+    status.textContent = belowMinimum ? t("minOrderBlock") : "";
+  }
+
+  function cartBodyHtml(items, mode) {
     if (readSuccessMessage() && !items.length) {
-      target.innerHTML = `<div class="cart-success">
+      return `<div class="cart-success">
         <strong>${escapeHtml(t("sentTitle"))}</strong>
         <p>${escapeHtml(t("sent"))}</p>
       </div>
@@ -275,29 +306,55 @@
         <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
         <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
       </div>`;
-      return;
     }
 
     if (!items.length) {
-      target.innerHTML = `<p class="cart-empty">${escapeHtml(t("empty"))}</p>
+      return `<p class="cart-empty">${escapeHtml(t("empty"))}</p>
         <div class="hero-actions">
           <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
           <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
         </div>`;
-      return;
     }
 
-    target.innerHTML = `<div class="cart-list">${items.map(itemHtml).join("")}</div>
+    return `<div class="cart-list">${items.map(itemHtml).join("")}</div>
       ${totalsHtml(items)}
       <div class="hero-actions">
         ${mode === "drawer" ? `<a class="primary-button" href="${cartPageHref()}">${escapeHtml(t("checkout"))}</a>` : ""}
         <button class="secondary-button" type="button" data-cart-clear>${escapeHtml(t("clear"))}</button>
-      </div>
-      ${mode === "page" ? checkoutFormHtml(items) : ""}
-      <div class="cart-quick-contact">
+      </div>`;
+  }
+
+  function cartContactHtml(items) {
+    if (!items.length) return "";
+    return `<div class="cart-quick-contact">
         <a href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
         <a href="mailto:${EMAIL}">${escapeHtml(t("write"))}</a>
       </div>`;
+  }
+
+  function renderCartSurface(target, mode = "drawer") {
+    if (!target) return;
+    const items = readCart();
+
+    if (mode !== "page") {
+      target.innerHTML = cartBodyHtml(items, mode) + cartContactHtml(items);
+      return;
+    }
+
+    // Страница оформления разбита на три узла: перерисовывается только список,
+    // форма между ними живёт своей жизнью.
+    if (!target.querySelector("[data-cart-body]")) {
+      target.innerHTML = `<div data-cart-body></div><div data-cart-form-host></div><div data-cart-contact></div>`;
+    }
+
+    const active = document.activeElement;
+    const focusedSku = active && active.matches && active.matches("[data-cart-qty]") ? active.dataset.cartQty : null;
+
+    target.querySelector("[data-cart-body]").innerHTML = cartBodyHtml(items, mode);
+    syncCheckoutForm(target.querySelector("[data-cart-form-host]"), items);
+    target.querySelector("[data-cart-contact]").innerHTML = cartContactHtml(items);
+
+    if (focusedSku) target.querySelector(`[data-cart-qty="${CSS.escape(focusedSku)}"]`)?.focus();
   }
 
   function cartPageHref() {
@@ -355,8 +412,10 @@
     const items = readCart();
     const total = cartTotal(items);
     const phone = new FormData(form).get("phone")?.toString().trim();
+    delete status.dataset.cartSticky;
 
     if (!phone) {
+      status.dataset.cartSticky = "1";
       status.textContent = t("phoneRequired");
       return;
     }
@@ -381,6 +440,7 @@
     };
 
     status.textContent = t("sending");
+    form.dataset.cartSubmitting = "1";
     form.querySelector("button[type='submit']").disabled = true;
 
     try {
@@ -389,18 +449,29 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      // 429 — это не поломка, а лимит частоты: своё сообщение вместо технического.
+      if (response.status === 429) {
+        delete form.dataset.cartSubmitting;
+        status.dataset.cartSticky = "1";
+        status.textContent = t("tooMany");
+        form.querySelector("button[type='submit']").disabled = false;
+        return;
+      }
       if (!response.ok) {
         let message = "";
         try { message = (await response.json()).error || ""; } catch {}
         throw new Error(message || "Order failed");
       }
+      delete form.dataset.cartSubmitting;
       setSuccessMessage(true);
-      writeCart([]);
       form.reset();
+      writeCart([]);
       renderAll();
       const pageStatus = document.querySelector("[data-cart-page-status]");
       if (pageStatus) pageStatus.textContent = t("sent");
     } catch (error) {
+      delete form.dataset.cartSubmitting;
+      status.dataset.cartSticky = "1";
       status.textContent = error && error.message && error.message !== "Order failed"
         ? `${t("failed")} (${error.message})`
         : t("failed");

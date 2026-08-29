@@ -143,6 +143,19 @@ function fittingTitle(candidates) {
   return candidates.find((title) => title.length <= 65) ?? candidates[candidates.length - 1];
 }
 
+function compactTitle(title, maxLength = 65) {
+  const clean = String(title || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= maxLength) return clean;
+
+  const suffixMatch = clean.match(/\s\|\sFLAKS$/);
+  const suffix = suffixMatch ? suffixMatch[0] : "";
+  const body = suffix ? clean.slice(0, -suffix.length) : clean;
+  const available = maxLength - suffix.length - 1;
+  if (available <= 10) return clean.slice(0, maxLength - 3).trimEnd() + "...";
+
+  return `${body.slice(0, available).trimEnd()}...${suffix}`;
+}
+
 function categoryStats(products) {
   let minPrice = Infinity;
   const diameters = [];
@@ -318,6 +331,13 @@ function esc(value) {
     .replaceAll("'", "&#039;");
 }
 
+function escText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 // ---------------------------------------------------------------------------
 // Two language trees out of one build. Ukrainian keeps the existing URLs so
 // nothing already indexed moves; Russian is served from the same paths under
@@ -391,7 +411,7 @@ function pagination(category, currentPage, totalPages) {
 // `pathname` is the language-independent path, e.g. "/catalog/plashki.html".
 // Ukrainian keeps it as is; Russian is served from the same path under /ru.
 function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk, descriptionRu = descriptionUk, lang = "uk", og = {}) {
-  const title = lang === "ru" ? titleRu : titleUk;
+  const title = compactTitle(lang === "ru" ? titleRu : titleUk);
   const description = lang === "ru" ? descriptionRu : descriptionUk;
   // vercel.json sets trailingSlash:false, so the Russian root is /ru, not /ru/.
   const pathFor = (target) => (target === "ru" ? `/ru${pathname === "/" ? "" : pathname}` : pathname);
@@ -419,7 +439,7 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="ktStUU9o0Pp1VxKn6AknzUox_oK7NCcKQa6A4uee4-I" />
-    <title>${esc(title)}</title>
+    <title>${escText(title)}</title>
     <meta name="description" content="${esc(description)}">
     <meta name="robots" content="index,follow">
     <meta property="og:title" content="${esc(title)}">
@@ -1356,8 +1376,16 @@ for (const product of data.products) {
   // Tool names carry the specs that identify the item, so they are never cut;
   // what goes is the marketing clause that would be truncated away anyway. The
   // brand stays even when nothing fits — a title without it is worth less.
-  const title = fittingTitle([`${product.nameUa} купити в Україні | FLAKS`, `${product.nameUa} | FLAKS`]);
-  const titleRu = fittingTitle([`${product.nameRu} купить в Украине | FLAKS`, `${product.nameRu} | FLAKS`]);
+  const title = fittingTitle([
+    `${product.nameUa} купити в Україні | FLAKS`,
+    `${product.nameUa} купити | FLAKS`,
+    `${product.nameUa} | FLAKS`,
+  ]);
+  const titleRu = fittingTitle([
+    `${product.nameRu} купить в Украине | FLAKS`,
+    `${product.nameRu} купить | FLAKS`,
+    `${product.nameRu} | FLAKS`,
+  ]);
   const description = buildMetaDescription(product, specs, "ua");
   const descriptionRu = buildMetaDescription(product, specs, "ru");
   const body = `${breadcrumbHtml(product)}

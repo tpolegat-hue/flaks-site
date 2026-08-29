@@ -4,6 +4,15 @@ const MIN_ORDER_TOTAL = 2000;
 const MAX_ITEMS = 100;
 const MAX_QTY = 10000;
 const MAX_PRICE = 10_000_000;
+// Окна два. Дешёвое считает любые обращения с адреса, строгое — только те, что
+// дошли до реальной отправки письма и сообщения. Иначе покупатель, три раза
+// споткнувшийся о валидацию, сжигал бы себе квоту на заказ.
+const RATE_LIMITS = {
+  attempt: { max: 30, windowMs: 15 * 60 * 1000, minGapMs: 2_000 },
+  delivery: { max: 5, windowMs: 60 * 60 * 1000, minGapMs: 20_000 },
+};
+const RATE_LIMIT_MAX_KEYS = 5_000;
+const rateLimitBuckets = new Map();
 
 function toNumber(value) {
   const number = Number(String(value || "0").replace(",", "."));
@@ -16,6 +25,52 @@ function cleanText(value, max = 600) {
 
 function money(value) {
   return new Intl.NumberFormat("uk-UA", { style: "currency", currency: "UAH", maximumFractionDigits: 2 }).format(toNumber(value));
+}
+
+function clientIp(request) {
+  // Node приводит имена заголовков к нижнему регистру; на Vercel x-forwarded-for
+  // проставляет сама платформа, так что подделать его клиент не может.
+  const forwarded = request.headers?.["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return forwarded.split(",")[0].trim();
+  }
+  return request.headers?.["x-real-ip"] || request.socket?.remoteAddress || "unknown";
+}
+
+// Скользящее окно, а не фиксированное: на стыке двух фиксированных окон можно
+// было проскочить двойную порцию заявок подряд.
+function checkRateLimit(bucketName, ip) {
+  const rule = RATE_LIMITS[bucketName];
+  const key = `${bucketName}:${ip}`;
+  const now = Date.now();
+  const times = (rateLimitBuckets.get(key) || []).filter((time) => now - time < rule.windowMs);
+  const last = times[times.length - 1];
+
+  let retryAfter = 0;
+  if (last !== undefined && now - last < rule.minGapMs) {
+    retryAfter = Math.ceil((rule.minGapMs - (now - last)) / 1000);
+  } else if (times.length >= rule.max) {
+    retryAfter = Math.max(1, Math.ceil((rule.windowMs - (now - times[0])) / 1000));
+  }
+
+  if (!retryAfter) times.push(now);
+  rateLimitBuckets.set(key, times);
+
+  return retryAfter ? { ok: false, retryAfter } : { ok: true };
+}
+
+const RATE_LIMIT_MAX_AGE_MS = Math.max(...Object.values(RATE_LIMITS).map((rule) => rule.windowMs));
+
+function pruneRateLimitBuckets() {
+  const now = Date.now();
+  for (const [key, times] of rateLimitBuckets) {
+    const last = times[times.length - 1];
+    if (last === undefined || now - last >= RATE_LIMIT_MAX_AGE_MS) rateLimitBuckets.delete(key);
+  }
+  // Распределённый флуд наплодит ключей быстрее, чем они протухнут: держим потолок.
+  while (rateLimitBuckets.size > RATE_LIMIT_MAX_KEYS) {
+    rateLimitBuckets.delete(rateLimitBuckets.keys().next().value);
+  }
 }
 
 function validateOrder(body) {
@@ -200,6 +255,17 @@ module.exports = async function handler(request, response) {
       response.status(413).json({ error: "Payload too large" });
       return;
     }
+    // Считаем до honeypot, иначе бот, заполняющий ловушку, не ограничен ничем:
+    // он получал 200 и уходил раньше, чем счётчик его видел.
+    const ip = clientIp(request);
+    const attempt = checkRateLimit("attempt", ip);
+    if (!attempt.ok) {
+      response.setHeader("Retry-After", String(attempt.retryAfter));
+      response.status(429).json({ error: "Too many order attempts. Please try again later." });
+      return;
+    }
+    pruneRateLimitBuckets();
+
     // honeypot: скрытое поле "website" в форме заполняют только боты
     if (request.body && request.body.website) {
       response.status(200).json({ ok: true });
@@ -217,18 +283,28 @@ module.exports = async function handler(request, response) {
       return;
     }
 
+    const deliveryLimit = checkRateLimit("delivery", ip);
+    if (!deliveryLimit.ok) {
+      response.setHeader("Retry-After", String(deliveryLimit.retryAfter));
+      response.status(429).json({ error: "Too many order attempts. Please try again later." });
+      return;
+    }
+
     const deliveries = await Promise.allSettled([sendEmail(parsed.order), sendTelegram(parsed.order)]);
     const [emailResult, telegramResult] = deliveries.map((delivery) =>
       delivery.status === "fulfilled" ? delivery.value : { error: delivery.reason?.message || "Delivery failed" },
     );
     const delivered = [emailResult, telegramResult].some((result) => result && !result.skipped && !result.error);
 
+    // Ответы Resend и Telegram наружу не отдаются: в сообщении об ошибке Resend
+    // приходит сам API-ключ, а в успешном ответе Telegram — chat_id владельца.
     if (!delivered) {
-      response.status(500).json({ error: "Order delivery failed", email: emailResult, telegram: telegramResult });
+      console.error("Order delivery failed:", JSON.stringify({ email: emailResult, telegram: telegramResult }));
+      response.status(500).json({ error: "Order delivery failed" });
       return;
     }
 
-    response.status(200).json({ ok: true, email: emailResult, telegram: telegramResult });
+    response.status(200).json({ ok: true });
   } catch (error) {
     console.error(error);
     response.status(500).json({ error: "Order delivery failed" });
