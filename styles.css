@@ -1717,6 +1717,46 @@ td {
   font-weight: 600;
 }
 
+/* Thread sizes within a category — a size chart, so they run small and wide. */
+.seo-facets .facet-links {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seo-facets .facet-links li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.seo-facets .facet-links a {
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.seo-facets .facet-links li:hover {
+  border-color: var(--accent);
+}
+
+.seo-facets .facet-links small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.seo-facets .facet-links [aria-current="page"] {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .seo-faq details {
   margin-top: 10px;
   padding: 4px 14px;

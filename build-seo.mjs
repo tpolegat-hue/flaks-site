@@ -678,13 +678,15 @@ function capitalizeFirst(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// Catalog file names already spoken for. Section and facet pages share the
+// catalog/ directory with category pages, so a generated slug has to be checked
+// against it: "sverla-kkh" plus a section slugged "kitay" would land on the
+// existing "sverla-kkh-kitay" category.
+const reservedCatalogNames = new Set(["index.html"]);
+
 const sectionsByCategory = new Map();
 {
-  // Section pages share the catalog/ directory with category pages, so their
-  // file names have to be checked against the ones already spoken for:
-  // "sverla-kkh" plus a section slugged "kitay" would land on the existing
-  // "sverla-kkh-kitay" category.
-  const reserved = new Set(["index.html"]);
+  const reserved = reservedCatalogNames;
   for (const category of data.categories) {
     const count = data.products.filter((product) => product.categorySlug === category.slug).length;
     reserved.add(`${category.slug}.html`);
@@ -733,6 +735,87 @@ for (const sections of sectionsByCategory.values()) {
   for (const section of sections) {
     for (const product of section.products) sectionBySku.set(product.sku, section);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Thread facets — a cut across a category by one spec instead of by the price
+// list's own grouping. Someone at a machine searches "мітчик М27", and the
+// category page holding 1566 taps from М1 to М52 is not an answer to that.
+//
+// Only threading tools reach this point with a metric thread: seo-spec.mjs no
+// longer reads the "М" of a gear cutter's module as one.
+// ---------------------------------------------------------------------------
+const FACET_MIN_PRODUCTS = 20;
+
+const facetsByCategory = new Map();
+{
+  for (const category of data.categories) {
+    const groups = new Map();
+    for (const product of data.products) {
+      if (product.categorySlug !== category.slug) continue;
+      const specs = specsBySku.get(product.sku);
+      if (specs.threadKind !== "metric" || !specs.thread) continue;
+      // М24, М24×1.5 and М24×2 are one shelf. The buyer looks for the diameter
+      // first and picks the pitch out of the table once he is on the page;
+      // splitting by pitch would scatter this into dozens of thin pages.
+      const nominal = `М${specs.thread.slice(1).split("×")[0]}`;
+      if (!groups.has(nominal)) groups.set(nominal, []);
+      groups.get(nominal).push(product);
+    }
+
+    const facets = [];
+    for (const [nominal, items] of groups) {
+      if (items.length < FACET_MIN_PRODUCTS) continue;
+      const base = `${category.slug}-${slugify(nominal)}`;
+      let slug = base;
+      for (let n = 2; reservedCatalogNames.has(`${slug}.html`); n++) slug = `${base}-${n}`;
+      reservedCatalogNames.add(`${slug}.html`);
+      for (let n = 2; n <= Math.ceil(items.length / categoryPageSize); n++) {
+        reservedCatalogNames.add(`${slug}-page-${n}.html`);
+      }
+      facets.push({
+        slug,
+        thread: nominal,
+        // The category name stays in the heading: seven tap categories carry an
+        // М27, and "Мітчики М27" seven times over would have them compete with
+        // each other for the same query.
+        ua: `${category.ua} ${nominal}`,
+        ru: `${category.ru} ${nominal}`,
+        category,
+        products: items,
+      });
+    }
+    // Ascending by thread size reads like a size chart, which is what it is.
+    facets.sort((a, b) => parseFloat(a.thread.slice(1)) - parseFloat(b.thread.slice(1)));
+    if (facets.length) facetsByCategory.set(category.slug, facets);
+  }
+}
+
+const facetBySku = new Map();
+for (const facets of facetsByCategory.values()) {
+  for (const facet of facets) {
+    for (const product of facet.products) facetBySku.set(product.sku, facet);
+  }
+}
+
+// Links from a category page down to its thread sizes, and across from one
+// facet page to its neighbours. `current` is left unlinked when given.
+function facetLinksHtml(categorySlug, current = null) {
+  const facets = facetsByCategory.get(categorySlug) || [];
+  if (!facets.length) return "";
+  const items = facets
+    .map((facet) => {
+      const label = esc(facet.thread);
+      const count = `<small>${facet.products.length}</small>`;
+      return facet.slug === current
+        ? `<li><span aria-current="page">${label}</span> ${count}</li>`
+        : `<li><a href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${label}</a> ${count}</li>`;
+    })
+    .join("");
+  return `<section class="content-section seo-facets">
+        <h2>${bilingual("Розміри різьби", "Размеры резьбы")}</h2>
+        <ul class="facet-links">${items}</ul>
+      </section>`;
 }
 
 function productRowsHtml(products) {
@@ -832,6 +915,7 @@ for (const category of data.categories.filter((item) => item.count > 0)) {
       </section>
       ${pagination(category, pageNumber, totalPages)}
       ${isFirstPage ? sectionLinksHtml(category.slug) : ""}
+      ${isFirstPage ? facetLinksHtml(category.slug) : ""}
       ${isFirstPage ? categorySeoTextHtml(category, stats, products.length, categoriesBySlug) : ""}
       ${faq ? faq.html : ""}`;
 
@@ -1069,6 +1153,215 @@ await writeBatched(
 );
 
 // ---------------------------------------------------------------------------
+// Thread facet pages.
+// ---------------------------------------------------------------------------
+const facetPageWrites = [];
+
+function facetBreadcrumbHtml(facet, pageNumber) {
+  const self =
+    pageNumber > 1
+      ? `<a href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${esc(facet.thread)}</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
+      : `<span aria-current="page">${esc(facet.thread)}</span>`;
+  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
+      <span aria-hidden="true">›</span>
+      <a href="../catalog/${esc(facet.category.slug)}.html" data-keep-lang>${bilingual(facet.category.ua, facet.category.ru)}</a>
+      <span aria-hidden="true">›</span>
+      ${self}
+    </nav>`;
+}
+
+function facetBreadcrumbJsonLd(facet, pageNumber) {
+  const items = [
+    { "@type": "ListItem", position: 1, name: "FLAKS", item: absUrl("/") },
+    { "@type": "ListItem", position: 2, name: "Каталог", item: absUrl("/catalog") },
+    {
+      "@type": "ListItem",
+      position: 3,
+      name: inLang(facet.category.ua, facet.category.ru),
+      item: absUrl(`/catalog/${facet.category.slug}.html`),
+    },
+    { "@type": "ListItem", position: 4, name: facet.thread, item: absUrl(`/catalog/${facet.slug}.html`) },
+  ];
+  if (pageNumber > 1) {
+    items.push({
+      "@type": "ListItem",
+      position: 5,
+      name: inLang(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`),
+      item: absUrl(categoryPageHref(facet, pageNumber)),
+    });
+  }
+  return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: items };
+}
+
+// The pitches actually stocked under this nominal diameter — the one thing a
+// size page can say that its category page cannot.
+function facetPitches(facet) {
+  const pitches = new Set();
+  for (const product of facet.products) {
+    const specs = specsBySku.get(product.sku);
+    if (specs.pitch) pitches.add(Number(specs.pitch));
+  }
+  return [...pitches].sort((a, b) => a - b);
+}
+
+function facetSeoTextHtml(facet, stats, count) {
+  const kind = TOOL_KINDS[stats.kindId];
+  const pitches = facetPitches(facet);
+  const partsUa = [
+    `${facet.category.ua} з різьбою ${facet.thread} зі складу FLAKS у Харкові: ${count} ${ukPlural(count, "позиція", "позиції", "позицій")} для ${kind.purposeUa}.`,
+  ];
+  const partsRu = [
+    `${facet.category.ru} с резьбой ${facet.thread} со склада FLAKS в Харькове: ${count} ${ukPlural(count, "позиция", "позиции", "позиций")} для ${kind.purposeRu}.`,
+  ];
+  if (pitches.length) {
+    partsUa.push(`Кроки різьби в наявності: ${pitches.join(", ")} мм.`);
+    partsRu.push(`Шаги резьбы в наличии: ${pitches.join(", ")} мм.`);
+  }
+  if (stats.materials.length) {
+    partsUa.push(`Матеріали: ${stats.materials.join(", ")}.`);
+    partsRu.push(`Материалы: ${stats.materials.join(", ")}.`);
+  }
+  if (stats.brands.length) {
+    partsUa.push(`Серед виробників: ${stats.brands.join(", ")}.`);
+    partsRu.push(`Среди производителей: ${stats.brands.join(", ")}.`);
+  }
+  partsUa.push(`Ціни від ${stats.minPrice} грн без ПДВ, відправлення по всій Україні, опт і роздріб.`);
+  partsRu.push(`Цены от ${stats.minPrice} грн без НДС, отправка по всей Украине, опт и розница.`);
+
+  const links = [
+    `<a href="../catalog/${esc(facet.category.slug)}.html" data-keep-lang>${bilingual(
+      `Уся категорія «${facet.category.ua}»`,
+      `Вся категория «${facet.category.ru}»`,
+    )}</a>`,
+    ...categoryArticleLinks(facet.category.slug).map(
+      (article) => `<a href="${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`,
+    ),
+  ];
+
+  return `<section class="content-section seo-prose">
+        <h2>${bilingual(`${facet.category.ua} ${facet.thread} — асортимент і ціни`, `${facet.category.ru} ${facet.thread} — ассортимент и цены`)}</h2>
+        <p>${bilingual(partsUa.join(" "), partsRu.join(" "))}</p>
+        <p class="seo-note">${bilingual("Дивіться також:", "Смотрите также:")} ${links.join(" · ")}</p>
+      </section>`;
+}
+
+for (const facets of facetsByCategory.values()) {
+  for (const facet of facets) {
+    const products = facet.products;
+    const totalPages = Math.max(1, Math.ceil(products.length / categoryPageSize));
+    const stats = categoryStats(products);
+    const facetLastmod = products.reduce((date, product) => {
+      const productDate = lastmod(product.updatedAt);
+      return productDate > date ? productDate : date;
+    }, contentLastmod);
+
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+      const pageProducts = products.slice((pageNumber - 1) * categoryPageSize, pageNumber * categoryPageSize);
+      const rangeStart = (pageNumber - 1) * categoryPageSize + 1;
+      const rangeEnd = Math.min(pageNumber * categoryPageSize, products.length);
+      const isFirstPage = pageNumber === 1;
+
+      const title = isFirstPage
+        ? fittingTitle([
+            `${facet.ua} — купити в Україні, ціна від ${stats.minPrice} грн | FLAKS`,
+            `${facet.ua} — ціна від ${stats.minPrice} грн | FLAKS`,
+            `${facet.ua} — купити | FLAKS`,
+            `${facet.ua} | FLAKS`,
+          ])
+        : `${facet.ua}, сторінка ${pageNumber} | FLAKS`;
+      const titleRu = isFirstPage
+        ? fittingTitle([
+            `${facet.ru} купить в Украине, цена от ${stats.minPrice} грн | FLAKS`,
+            `${facet.ru} — цена от ${stats.minPrice} грн | FLAKS`,
+            `${facet.ru} — купить | FLAKS`,
+            `${facet.ru} | FLAKS`,
+          ])
+        : `${facet.ru}, страница ${pageNumber} | FLAKS`;
+      const description = isFirstPage
+        ? `${facet.category.ua} з різьбою ${facet.thread}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
+        : `${facet.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ.`;
+      const descriptionRu = isFirstPage
+        ? `${facet.category.ru} с резьбой ${facet.thread}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Отправка по всей Украине, опт и розница.`
+        : `${facet.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС.`;
+
+      const body = `${facetBreadcrumbHtml(facet, pageNumber)}
+      <section class="seo-hero">
+        <p class="eyebrow">${bilingual("Розмір різьби", "Размер резьбы")}</p>
+        <h1>${bilingual(facet.ua, facet.ru)}</h1>
+        <p>${bilingual(description, descriptionRu)}</p>
+      </section>
+      ${pagination(facet, pageNumber, totalPages)}
+      <section class="seo-table-wrap">
+        <p class="seo-note">${bilingual(
+          `Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Крок різьби, виконання та виробник — у назві позиції.`,
+          `Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Шаг резьбы, исполнение и производитель — в названии позиции.`,
+        )}</p>
+        <table>
+          ${productTableHeadHtml()}
+          <tbody>${productRowsHtml(pageProducts)}</tbody>
+        </table>
+      </section>
+      ${pagination(facet, pageNumber, totalPages)}
+      ${isFirstPage ? facetLinksHtml(facet.category.slug, facet.slug) : ""}
+      ${isFirstPage ? facetSeoTextHtml(facet, stats, products.length) : ""}`;
+
+      const href = categoryPageHref(facet, pageNumber);
+      const fileName = pageNumber === 1 ? `${facet.slug}.html` : `${facet.slug}-page-${pageNumber}.html`;
+
+      for (const lang of LANGUAGES) {
+        jsonLdLang = lang;
+        const structured = [
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: `${inLang(facet.ua, facet.ru)} | FLAKS`,
+            description: inLang(
+              `${facet.category.ua} з різьбою ${facet.thread} зі складу FLAKS. Ціни в гривні без ПДВ.`,
+              `${facet.category.ru} с резьбой ${facet.thread} со склада FLAKS. Цены в гривне без НДС.`,
+            ),
+            url: absUrl(href),
+            isPartOf: absUrl(`/catalog/${facet.category.slug}.html`),
+            mainEntity: {
+              "@type": "ItemList",
+              numberOfItems: pageProducts.length,
+              itemListElement: pageProducts.slice(0, 100).map((product, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                url: absUrl(`/products/${slugProduct(product)}`),
+                name: inLang(product.nameUa, product.nameRu),
+              })),
+            },
+          },
+          facetBreadcrumbJsonLd(facet, pageNumber),
+        ];
+        facetPageWrites.push({
+          lang,
+          fileName,
+          html: page(title, description, body, structured, href, titleRu, descriptionRu, lang),
+        });
+        categoryUrls.push({
+          loc: `${siteUrl}${langPrefix(lang)}${href}`,
+          priority: pageNumber === 1 ? "0.65" : "0.5",
+          lastmod: facetLastmod,
+        });
+      }
+    }
+  }
+}
+jsonLdLang = "uk";
+
+await writeBatched(
+  facetPageWrites,
+  ({ lang, fileName, html }) => writeIfChanged(path.join(langDir(lang), "catalog", fileName), html),
+  50,
+);
+
+// ---------------------------------------------------------------------------
 // Catalog hub (/catalog) — the crawlable entry point into every category page.
 // Without it the whole catalog is only reachable through sitemap.xml.
 // ---------------------------------------------------------------------------
@@ -1171,6 +1464,7 @@ function categoryCardsHtml(prefix) {
   const expected = new Set([
     ...categoryPageWrites.map((entry) => entry.fileName),
     ...sectionPageWrites.map((entry) => entry.fileName),
+    ...facetPageWrites.map((entry) => entry.fileName),
     "index.html",
   ]);
   for (const lang of LANGUAGES) {
@@ -1355,8 +1649,19 @@ function relatedHtml(product) {
     .map((s) => `<li><a href="../products/${slugProduct(s)}" data-keep-lang>${bilingual(s.nameUa, s.nameRu)}</a></li>`)
     .join("");
   const section = sectionBySku.get(product.sku);
-  // The section link comes first: it is the closer, more specific listing.
+  const facet = facetBySku.get(product.sku);
+  // Narrowest listing first: the thread size, then the section, then the whole
+  // category. This is also how the facet and section pages earn links from the
+  // 12k product pages instead of hanging off the category page alone.
   const upLinks = [
+    ...(facet
+      ? [
+          `<a class="seo-related-all" href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${bilingual(
+            `Усі ${facet.category.ua.toLowerCase()} ${facet.thread}`,
+            `Все ${facet.category.ru.toLowerCase()} ${facet.thread}`,
+          )}</a>`,
+        ]
+      : []),
     ...(section
       ? [
           `<a class="seo-related-all" href="../catalog/${esc(section.slug)}.html" data-keep-lang>${bilingual(

@@ -206,11 +206,30 @@ export function parseSpecs(product) {
   const diaMatch = work.match(/(?:ф|Ø|⌀|диаметр|діаметр)\s*=?\s*(\d+(?:[.,]\d+)?)/i);
   const diameter = diaMatch ? num(diaMatch[1]) : "";
 
-  // Metric thread: М 12, М 2х0.4 (avoid Морзе "КМ1" via preceding-char guard).
-  const metric = text.match(/(?:^|[\s(\/\\])М\s*(\d+(?:[.,]\d+)?)(?:\s*[хx]\s*(\d+(?:[.,]\d+)?))?/);
+  // "М 12", "М 2х0.4" — but the same letter means two different things.
+  //
+  // On a threading tool it is the thread it cuts. On a gear-cutting tool it is
+  // the module of the gear: "Фреза червячная М 3.5" is module 3.5, not an M3.5
+  // thread, and "Резец модульный зубонарезной М 6.0" likewise. Calling that a
+  // thread put a wrong "Резьба: M3.5" row on 390 product pages and would have
+  // produced landing pages for threads that do not exist.
+  //
+  // Elsewhere the number belongs to something else again — the screw a
+  // counterbore is made for ("цековка под винт М6"), a toolholder size
+  // ("Резец CSBNR 25х25 М12") — so it is not read as a thread there at all.
+  const THREADING_KINDS = new Set(["tap", "tapRoll", "tapNut", "die", "gauge"]);
+  const GEAR_KINDS = new Set(["gearTool", "cutter"]);
+  const isGearTool =
+    GEAR_KINDS.has(kindId) &&
+    (product.categorySlug === "frezy-chervyachnye-dolbyaki-t-obr" || /модульн|зубонарезн|зуборезн|зубонаріз|зуборіз/i.test(text));
+
+  // Guard against Морзе "КМ1" by requiring a boundary before the М.
+  const mNumber = text.match(/(?:^|[\s(\/\\])М\s*(\d+(?:[.,]\d+)?)(?:\s*[хx]\s*(\d+(?:[.,]\d+)?))?/);
   // Inch / pipe / special thread systems.
   const special = text.match(/\b(UNC|UNF|UNEF|BSW|BSF|Rp|Rc|Rd|Тр|Tr)\s*\.?\s*(\d+(?:[\\/]\d+)?(?:[.,]\d+)?)/i) ||
     text.match(/\b(G|W|K)\s*(\d+(?:[\\/]\d+)?(?:[.,]\d+)?)/);
+  const metric = mNumber && THREADING_KINDS.has(kindId) ? mNumber : null;
+  const gearModule = mNumber && isGearTool ? num(mNumber[1]) : "";
   let thread = "";
   let threadKind = "";
   if (metric) {
@@ -261,7 +280,7 @@ export function parseSpecs(product) {
 
   return {
     kindId, kind: TOOL_KINDS[kindId],
-    diameter, shankDia, thread, threadKind, pitch, tpi,
+    diameter, shankDia, thread, threadKind, pitch, tpi, gearModule,
     materials, morse, shankType, teeth, type, ispolnenie,
     hand, hole, lengthOverall, dimensions, brand, origin, condition, series, set,
   };
@@ -280,6 +299,7 @@ export function buildSpecRows(product, specs) {
   push("Тип інструменту", "Тип инструмента", specs.kind.ua, specs.kind.ru);
   push("Категорія", "Категория", product.categoryUa, product.categoryRu);
   if (specs.thread) push("Різьба", "Резьба", specs.thread, specs.thread);
+  if (specs.gearModule) push("Модуль", "Модуль", `m ${specs.gearModule}`, `m ${specs.gearModule}`);
   if (specs.pitch) push("Крок різьби", "Шаг резьбы", `${specs.pitch} мм`, `${specs.pitch} мм`);
   if (specs.tpi) push("Ниток на дюйм", "Ниток на дюйм", specs.tpi, specs.tpi);
   if (specs.diameter) push("Діаметр Ø", "Диаметр Ø", `${specs.diameter} мм`, `${specs.diameter} мм`);
