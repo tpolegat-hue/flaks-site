@@ -96,6 +96,74 @@ const TOOL_KINDS = {
     purposeRu: "контроля размеров и резьбы деталей",
     purposeUa: "контролю розмірів і різьби деталей",
   },
+  // "Фрезы торцевые и другое" is a junk drawer, and everything unnamed in it
+  // used to come out as an end mill: 80 sets of steel stamps were described as
+  // tools "для фрезерування пазів, уступів, контурів і кишень".
+  stamp: {
+    ru: "Клеймо", ua: "Клеймо",
+    purposeRu: "нанесения маркировки на металл ударным способом",
+    purposeUa: "нанесення маркування на метал ударним способом",
+  },
+  insert: {
+    ru: "Нож (вставка) к сборной фрезе", ua: "Ніж (вставка) до збірної фрези",
+    purposeRu: "оснащения сборных торцевых и трёхсторонних фрез",
+    purposeUa: "оснащення збірних торцевих і тристоронніх фрез",
+  },
+  blank: {
+    ru: "Заготовка (брусок, пруток)", ua: "Заготовка (брусок, пруток)",
+    purposeRu: "изготовления и перезаточки режущего инструмента",
+    purposeUa: "виготовлення та переточування різального інструмента",
+  },
+  spotface: {
+    ru: "Цековка", ua: "Цеківка",
+    purposeRu: "обработки опорных площадок под головки крепежа и шайбы",
+    purposeUa: "обробки опорних площадок під головки кріплення та шайби",
+  },
+  rollDie: {
+    ru: "Ролик резьбонакатной", ua: "Ролик різьбонакатний",
+    purposeRu: "накатывания наружной резьбы резьбонакатными головками",
+    purposeUa: "накатування зовнішньої різьби різьбонакатними головками",
+  },
+  chaser: {
+    ru: "Гребёнка резьбонарезная", ua: "Гребінка різьбонарізна",
+    purposeRu: "нарезания наружной резьбы в резьбонарезных головках",
+    purposeUa: "нарізання зовнішньої різьби в різьбонарізних головках",
+  },
+  threadMill: {
+    ru: "Резьбофреза", ua: "Різьбофреза",
+    purposeRu: "фрезерования наружной и внутренней резьбы",
+    purposeUa: "фрезерування зовнішньої та внутрішньої різьби",
+  },
+  broach: {
+    ru: "Протяжка", ua: "Протяжка",
+    purposeRu: "протягивания шпоночных пазов и отверстий",
+    purposeUa: "протягування шпонкових пазів і отворів",
+  },
+  center: {
+    ru: "Центр токарный", ua: "Центр токарний",
+    purposeRu: "поджатия детали в центрах токарного станка",
+    purposeUa: "підтискання деталі в центрах токарного верстата",
+  },
+  burr: {
+    ru: "Борфреза (шарошка)", ua: "Борфреза (шарошка)",
+    purposeRu: "зачистки сварных швов, снятия заусенцев и обработки штампов",
+    purposeUa: "зачищення зварних швів, зняття задирок і обробки штампів",
+  },
+  bushing: {
+    ru: "Втулка переходная", ua: "Втулка перехідна",
+    purposeRu: "перехода между конусами Морзе в шпинделе станка",
+    purposeUa: "переходу між конусами Морзе у шпинделі верстата",
+  },
+  sawBlade: {
+    ru: "Полотно (пила) по металлу", ua: "Полотно (пила) по металу",
+    purposeRu: "резки металлических заготовок",
+    purposeUa: "різання металевих заготовок",
+  },
+  holder: {
+    ru: "Державка (патрон)", ua: "Державка (патрон)",
+    purposeRu: "закрепления сменного режущего инструмента",
+    purposeUa: "закріплення змінного різального інструмента",
+  },
   tool: {
     ru: "Металлорежущий инструмент", ua: "Металорізальний інструмент",
     purposeRu: "металлообработки",
@@ -103,22 +171,53 @@ const TOOL_KINDS = {
   },
 };
 
+// The leading noun of a product name names the tool, and it does so more
+// reliably than the category it was filed under. Anchored at the start, so a
+// "Нож к торцевой фрезе" is a knife and not a face mill.
+const KIND_BY_LEADING_NOUN = [
+  [/^\s*клейм/i, "stamp"],
+  [/^\s*нож/i, "insert"],
+  [/^\s*(?:брусок|пруток)/i, "blank"],
+  [/^\s*цековк/i, "spotface"],
+  [/^\s*ролик/i, "rollDie"],
+  [/^\s*гребенк|^\s*гребінк/i, "chaser"],
+  [/^\s*резьбофрез|^\s*різьбофрез/i, "threadMill"],
+  [/^\s*протяжк/i, "broach"],
+  [/^\s*центр/i, "center"],
+  [/^\s*борфрез/i, "burr"],
+  [/^\s*втулк/i, "bushing"],
+  [/^\s*(?:полотн|пила|пили|сегмент)/i, "sawBlade"],
+  [/^\s*(?:державк|патрон)/i, "holder"],
+];
+
 // ---------------------------------------------------------------------------
 // Materials: code + human label + which metals the material is suited for.
 // Order matters — more specific grades are tested first.
 // ---------------------------------------------------------------------------
+// `family` names the broader grade this one belongs to, so the two are never
+// listed side by side: "Р6М5К5 / Р6М5" is one steel, not a two-material tool.
 const MATERIALS = [
-  { re: /Р6М5К5/i, code: "Р6М5К5", ru: "кобальтовая быстрорежущая сталь Р6М5К5", ua: "кобальтова швидкорізальна сталь Р6М5К5",
+  { re: /Р6М5К5/i, code: "Р6М5К5", family: "Р6М5", ru: "кобальтовая быстрорежущая сталь Р6М5К5", ua: "кобальтова швидкорізальна сталь Р6М5К5",
     cutsRu: "нержавеющих, жаропрочных и труднообрабатываемых сталей", cutsUa: "нержавіючих, жароміцних і важкооброблюваних сталей" },
+  { re: /Р6АМ5/i, code: "Р6АМ5", ru: "быстрорежущая сталь Р6АМ5", ua: "швидкорізальна сталь Р6АМ5",
+    cutsRu: "конструкционных и легированных сталей", cutsUa: "конструкційних і легованих сталей" },
+  { re: /Р3АМ3Ф2/i, code: "Р3АМ3Ф2", ru: "быстрорежущая сталь 11Р3АМ3Ф2", ua: "швидкорізальна сталь 11Р3АМ3Ф2",
+    cutsRu: "конструкционных сталей при умеренных скоростях", cutsUa: "конструкційних сталей за помірних швидкостей" },
+  { re: /Р3М3Ф2/i, code: "Р3М3Ф2", ru: "быстрорежущая сталь 11Р3М3Ф2", ua: "швидкорізальна сталь 11Р3М3Ф2",
+    cutsRu: "конструкционных сталей при умеренных скоростях", cutsUa: "конструкційних сталей за помірних швидкостей" },
   { re: /Р18/i, code: "Р18", ru: "быстрорежущая сталь Р18", ua: "швидкорізальна сталь Р18",
     cutsRu: "конструкционных и легированных сталей", cutsUa: "конструкційних і легованих сталей" },
   { re: /Р6М5/i, code: "Р6М5", ru: "быстрорежущая сталь Р6М5", ua: "швидкорізальна сталь Р6М5",
     cutsRu: "конструкционных и легированных сталей, чугуна и цветных металлов", cutsUa: "конструкційних і легованих сталей, чавуну та кольорових металів" },
+  { re: /Р6М3/i, code: "Р6М3", ru: "быстрорежущая сталь Р6М3", ua: "швидкорізальна сталь Р6М3",
+    cutsRu: "конструкционных и легированных сталей", cutsUa: "конструкційних і легованих сталей" },
+  { re: /Р12/i, code: "Р12", ru: "быстрорежущая сталь Р12", ua: "швидкорізальна сталь Р12",
+    cutsRu: "конструкционных и легированных сталей", cutsUa: "конструкційних і легованих сталей" },
   { re: /Р9/i, code: "Р9", ru: "быстрорежущая сталь Р9", ua: "швидкорізальна сталь Р9",
     cutsRu: "конструкционных и углеродистых сталей", cutsUa: "конструкційних і вуглецевих сталей" },
-  { re: /HSS[-\s]?E\b/i, code: "HSS-E", ru: "кобальтовая сталь HSS-E", ua: "кобальтова сталь HSS-E",
+  { re: /HSS[-\s]?E\b/i, code: "HSS-E", family: "HSS", ru: "кобальтовая сталь HSS-E", ua: "кобальтова сталь HSS-E",
     cutsRu: "нержавеющих и жаропрочных сталей", cutsUa: "нержавіючих і жароміцних сталей" },
-  { re: /HSCO|HSS[-\s]?Co/i, code: "HSS-Co", ru: "кобальтовая сталь HSS-Co", ua: "кобальтова сталь HSS-Co",
+  { re: /HSCO|HSS[-\s]?Co/i, code: "HSS-Co", family: "HSS", ru: "кобальтовая сталь HSS-Co", ua: "кобальтова сталь HSS-Co",
     cutsRu: "нержавеющих и жаропрочных сталей", cutsUa: "нержавіючих і жароміцних сталей" },
   { re: /HSS/i, code: "HSS", ru: "быстрорежущая сталь HSS", ua: "швидкорізальна сталь HSS",
     cutsRu: "сталей и цветных металлов", cutsUa: "сталей та кольорових металів" },
@@ -145,6 +244,11 @@ const ORIGINS = [
   { re: /Польщ|Польш/i, ua: "Польща", ru: "Польша" },
   { re: /Чехи|Чехі/i, ua: "Чехія", ru: "Чехия" },
   { re: /Венгри|Угорщин/i, ua: "Угорщина", ru: "Венгрия" },
+  { re: /Чехослова|Чехослова/i, ua: "Чехословаччина", ru: "Чехословакия" },
+  { re: /Австри|Австрі/i, ua: "Австрія", ru: "Австрия" },
+  { re: /Итали|Італі/i, ua: "Італія", ru: "Италия" },
+  { re: /Швейцар/i, ua: "Швейцарія", ru: "Швейцария" },
+  { re: /США|U\.?S\.?A\b/i, ua: "США", ru: "США" },
   { re: /СССР|СРСР/i, ua: "СРСР", ru: "СССР" },
 ];
 
@@ -155,9 +259,16 @@ function num(value) {
 function detectKindId(product) {
   const slug = product.categorySlug || "";
   const text = `${product.nameRu || ""} ${product.nameUa || ""} ${product.sectionRu || ""}`;
+  const name = String(product.nameRu || product.nameUa || "");
+  for (const [re, kindId] of KIND_BY_LEADING_NOUN) {
+    if (re.test(name)) return kindId;
+  }
   if (slug.startsWith("metchiki")) {
     if (/раскатник|бесстружеч|розкатник|безстружк/i.test(text)) return "tapRoll";
-    if (slug === "metchiki-gaechnye" || /гаечн|гайков/i.test(text)) return "tapNut";
+    // The name, not `text`: the section "Метчики машинно-ручные и гаечные…"
+    // carries the word for all 66 products filed under it, and the machine taps
+    // among them are not nut taps.
+    if (slug === "metchiki-gaechnye" || /гаечн|гайков/i.test(name)) return "tapNut";
     return "tap";
   }
   if (slug === "plashki") return "die";
@@ -183,7 +294,10 @@ function detectKindId(product) {
   if (slug === "frezy-tortsevye-i-drugoe") {
     if (/резц|резец|різц|різець/i.test(text)) return "cutter";
     if (/торцев|торців/i.test(text)) return "facemill";
-    return "endmill";
+    // "…и другое" holds plenty that is not a mill at all. What the leading-noun
+    // table above did not name stays generic rather than becoming an end mill.
+    if (/^\s*фрез/i.test(name)) return "endmill";
+    return "tool";
   }
   return "tool";
 }
@@ -249,7 +363,11 @@ export function parseSpecs(product) {
 
   const materials = [];
   for (const m of MATERIALS) {
-    if (m.re.test(text) && !materials.some((x) => x.code === m.code)) materials.push(m);
+    if (!m.re.test(text)) continue;
+    if (materials.some((x) => x.code === m.code)) continue;
+    // A specific grade matched earlier already covers this one.
+    if (materials.some((x) => x.family === m.code)) continue;
+    materials.push(m);
   }
 
   const morse = text.match(/КМ\s*(\d)/i)?.[1] || "";
@@ -267,7 +385,10 @@ export function parseSpecs(product) {
   if (/глух/i.test(text)) hole = "blind";
   else if (/сквозн|наскрізн/i.test(text)) hole = "through";
 
-  const lengthOverall = text.match(/L\s*(?:общ|заг)?\s*=?\s*(\d+(?:[.,]\d+)?)/i)?.[1] || "";
+  // Boundary guard: without it the L of "FL60*" and of a catalogue code like
+  // "RT 100 U-SL 5511" was read as an overall length, putting "5511 мм" on a
+  // 90 mm drill.
+  const lengthOverall = text.match(/(?:^|[\s(])L\s*(?:общ|заг)?\s*=?\s*(\d+(?:[.,]\d+)?)/i)?.[1] || "";
   // Disc-mill style dimensions next to the diameter: ф 22х1х8.
   const dims = diaMatch
     ? work.slice(diaMatch.index).match(/(\d+(?:[.,]\d+)?)\s*[хx]\s*(\d+(?:[.,]\d+)?)(?:\s*[хx]\s*(\d+(?:[.,]\d+)?))?/)
@@ -279,9 +400,12 @@ export function parseSpecs(product) {
   const condition = /(?:^|[\s(])б\s*[\\/.]\s*у(?:[\s).,]|$)/i.test(text) ? "used" : "new";
 
   let series = "";
-  if (/длин|довг/i.test(text)) series = "long";
+  // "длинн", not "длин": the latter also matches the word "длина" in a spec and
+  // the "удлиненный" of a thickened shank, neither of which is the long series.
+  if (/длинн|довг/i.test(text)) series = "long";
   else if (/средн|серед/i.test(text)) series = "medium";
-  const set = /комплект|к-т|комплект із|набор|набір/i.test(text);
+  // "раскомплектованные" is the opposite of a set — those are loose singles.
+  const set = /комплект|к-т|набор|набір/i.test(text) && !/раскомплект|розукомплект/i.test(text);
 
   return {
     kindId, kind: TOOL_KINDS[kindId],
