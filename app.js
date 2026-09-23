@@ -149,8 +149,16 @@ const i18n = {
   },
 };
 
+function storedLanguage() {
+  try { return localStorage.getItem("flaks-lang") === "ru" ? "ru" : "uk"; } catch { return "uk"; }
+}
+
+function saveLanguage(lang) {
+  try { localStorage.setItem("flaks-lang", lang); } catch { /* Storage may be blocked. */ }
+}
+
 const state = {
-  lang: localStorage.getItem("flaks-lang") || "uk",
+  lang: storedLanguage(),
   query: "",
   category: "all",
   sort: "relevance",
@@ -199,12 +207,15 @@ function formatQty(qty) {
   return qty.toLocaleString("uk-UA");
 }
 
+const priceFormatters = Object.fromEntries(["uk", "ru"].map((lang) => [lang,
+  [0, 2].map((digits) => new Intl.NumberFormat(`${lang}-UA`, {
+    style: "currency", currency: "UAH", maximumFractionDigits: digits,
+  })),
+]));
+const nameCollators = { uk: new Intl.Collator("uk"), ru: new Intl.Collator("ru") };
+
 function formatPrice(price) {
-  return new Intl.NumberFormat(state.lang === "uk" ? "uk-UA" : "ru-UA", {
-    style: "currency",
-    currency: "UAH",
-    maximumFractionDigits: price % 1 === 0 ? 0 : 2,
-  }).format(price);
+  return priceFormatters[state.lang][price % 1 === 0 ? 0 : 1].format(price);
 }
 
 function escapeHtml(value) {
@@ -480,7 +491,10 @@ function renderCategoryLinks() {
     .join("");
 }
 
+let filterCache;
 function filteredProducts() {
+  const key = JSON.stringify([state.query, state.category, state.sort, state.stockOnly, state.lang]);
+  if (filterCache?.key === key) return filterCache.list;
   const tokenGroups = queryTokenGroups(state.query);
   const diameters = diameterQueries(state.query);
   // Scored once here and reused by the sort below: recomputing the score inside
@@ -496,7 +510,7 @@ function filteredProducts() {
     return true;
   });
 
-  const byName = (a, b) => productName(a).localeCompare(productName(b), state.lang === "uk" ? "uk" : "ru");
+  const byName = (a, b) => nameCollators[state.lang].compare(productName(a), productName(b));
 
   if (state.sort === "relevance" && (tokenGroups.length || diameters.length)) {
     list.sort((a, b) => scores.get(b) - scores.get(a) || byName(a, b));
@@ -506,6 +520,7 @@ function filteredProducts() {
   if (state.sort === "qtyDesc") list.sort((a, b) => b.qty - a.qty || byName(a, b));
   if (state.sort === "nameAsc") list.sort(byName);
 
+  filterCache = { key, list };
   return list;
 }
 
@@ -579,8 +594,9 @@ function render() {
 }
 
 function setLang(lang) {
+  if (lang !== "uk" && lang !== "ru") return;
   state.lang = lang;
-  localStorage.setItem("flaks-lang", lang);
+  saveLanguage(lang);
   translatePage();
   updateSearchUrl();
   render();
@@ -691,11 +707,11 @@ function updateLanguageLinks() {
 function applyUrlState() {
   const params = new URLSearchParams(window.location.search);
   const lang = params.get("lang");
-  const query = params.get("q") || "";
+  const query = params.get("q") || els.search.value || "";
 
   if (lang === "ru" || lang === "uk") {
     state.lang = lang;
-    localStorage.setItem("flaks-lang", lang);
+    saveLanguage(lang);
   }
 
   if (query) {

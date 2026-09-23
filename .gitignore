@@ -17,3 +17,5 @@ seo-spec.test.mjs
 # static files, so a committed price list would be downloadable from the site.
 *.xlsx
 *.xls
+*.csv
+*.tsv

@@ -4,6 +4,10 @@
   const MIN_ORDER_TOTAL = 2000;
   const TELEPHONE = "+380675453115";
   const EMAIL = "tpolegat@gmail.com";
+  let memoryCart = [];
+  let memorySuccess = false;
+  let storageFailed = false;
+  let drawerOpener;
 
   const texts = {
     uk: {
@@ -31,6 +35,7 @@
       city: "Місто",
       comment: "Коментар",
       phoneRequired: "Вкажіть телефон.",
+      catalogChanged: "Ціни або залишки змінилися. Кошик оновлено — перевірте його та підтвердьте заявку ще раз.",
       stockLimit: "Не можна замовити більше, ніж є на складі.",
       minOrderBlock: "Заявку можна відправити від 2 000 грн.",
       tooMany: "Забагато заявок з вашої адреси. Спробуйте за кілька хвилин або зателефонуйте нам.",
@@ -67,6 +72,7 @@
       city: "Город",
       comment: "Комментарий",
       phoneRequired: "Укажите телефон.",
+      catalogChanged: "Цены или остатки изменились. Корзина обновлена — проверьте её и подтвердите заявку ещё раз.",
       stockLimit: "Нельзя заказать больше, чем есть на складе.",
       minOrderBlock: "Заявку можно отправить от 2 000 грн.",
       tooMany: "Слишком много заявок с вашего адреса. Попробуйте через несколько минут или позвоните нам.",
@@ -88,7 +94,7 @@
     const params = new URLSearchParams(window.location.search);
     const queryLang = params.get("lang");
     if (queryLang === "ru" || queryLang === "uk") return queryLang;
-    return localStorage.getItem("flaks-lang") === "ru" ? "ru" : "uk";
+    try { return localStorage.getItem("flaks-lang") === "ru" ? "ru" : "uk"; } catch { return "uk"; }
   }
 
   function t(key) {
@@ -96,25 +102,39 @@
   }
 
   function readCart() {
+    if (storageFailed) return memoryCart.map((item) => ({ ...item }));
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
+      const seen = new Set();
+      return (Array.isArray(parsed) ? parsed : []).filter((item) => {
+        if (!item || typeof item !== "object" || typeof item.sku !== "string" || seen.has(item.sku)) return false;
+        seen.add(item.sku);
+        return toNumber(item.price) > 0 && toNumber(item.stock) >= 1 && toNumber(item.requestQty) >= 1;
+      }).map((item) => ({
+        sku: item.sku, nameUa: String(item.nameUa || ""), nameRu: String(item.nameRu || ""),
+        price: toNumber(item.price), stock: Math.min(10000, Math.floor(toNumber(item.stock))),
+        requestQty: cleanQty(item.requestQty, Math.min(10000, toNumber(item.stock))),
+      }));
     } catch {
-      return [];
+      return memoryCart.map((item) => ({ ...item }));
     }
   }
 
   function readSuccessMessage() {
-    return sessionStorage.getItem(SUCCESS_KEY) === "1";
+    try { return memorySuccess || sessionStorage.getItem(SUCCESS_KEY) === "1"; } catch { return memorySuccess; }
   }
 
   function setSuccessMessage(active) {
+    memorySuccess = active;
+    try {
     if (active) sessionStorage.setItem(SUCCESS_KEY, "1");
     else sessionStorage.removeItem(SUCCESS_KEY);
+    } catch { /* Keep this page usable with storage disabled. */ }
   }
 
   function writeCart(items) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    memoryCart = items.map((item) => ({ ...item }));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); storageFailed = false; } catch { storageFailed = true; }
     window.dispatchEvent(new CustomEvent("flaks-cart-change"));
   }
 
@@ -142,7 +162,7 @@
   }
 
   function cartTotal(items = readCart()) {
-    return items.reduce((sum, item) => sum + toNumber(item.price) * toNumber(item.requestQty), 0);
+    return items.reduce((sum, item) => sum + Math.round(toNumber(item.price) * 100) * toNumber(item.requestQty), 0) / 100;
   }
 
   function cartCount(items = readCart()) {
@@ -157,6 +177,7 @@
     const items = readCart();
     const index = items.findIndex((item) => item.sku === product.sku);
     if (index >= 0) {
+      Object.assign(items[index], { price: toNumber(product.price), stock, nameUa: product.nameUa, nameRu: product.nameRu });
       items[index].requestQty = cleanQty(toNumber(items[index].requestQty) + 1, items[index].stock);
     } else {
       items.push({
@@ -205,7 +226,7 @@
 
   function drawerHtml() {
     return `<div class="cart-overlay" data-cart-close hidden></div>
-      <aside class="cart-drawer" id="cartDrawer" aria-label="${escapeHtml(t("cartTitle"))}" hidden>
+      <aside class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-label="${escapeHtml(t("cartTitle"))}" hidden>
         <div class="cart-drawer-head">
           <div>
             <p class="eyebrow" data-cart-label="cart">${escapeHtml(t("cart"))}</p>
@@ -256,14 +277,14 @@
     return `<form class="cart-form" data-cart-form>
       <div class="form-grid">
         <label><span data-cart-text="name">${escapeHtml(t("name"))}</span><input name="name" autocomplete="name"></label>
-        <label><span data-cart-text="phone" data-cart-text-required>${escapeHtml(t("phone"))} *</span><input name="phone" autocomplete="tel" required></label>
+        <label><span data-cart-text="phone" data-cart-text-required>${escapeHtml(t("phone"))} *</span><input name="phone" type="tel" autocomplete="tel" maxlength="80" required></label>
         <label><span data-cart-text="email">${escapeHtml(t("email"))}</span><input name="email" type="email" autocomplete="email"></label>
         <label><span data-cart-text="city">${escapeHtml(t("city"))}</span><input name="city" autocomplete="address-level2"></label>
       </div>
       <label><span data-cart-text="comment">${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
       <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
       <button class="primary-button" type="submit" data-cart-text="submit" disabled>${escapeHtml(t("submit"))}</button>
-      <p class="cart-status" data-cart-status></p>
+      <p class="cart-status" data-cart-status role="status" aria-live="polite"></p>
     </form>`;
   }
 
@@ -283,8 +304,8 @@
     if (!host.querySelector("[data-cart-form]")) host.innerHTML = checkoutFormHtml();
 
     const form = host.querySelector("[data-cart-form]");
-    translateForm(form);
     if (form.dataset.cartSubmitting === "1") return;
+    translateForm(form);
 
     const belowMinimum = cartTotal(items) < MIN_ORDER_TOTAL;
     form.querySelector("button[type='submit']").disabled = belowMinimum;
@@ -384,6 +405,7 @@
     });
     const drawer = document.querySelector("#cartDrawer");
     if (drawer) drawer.setAttribute("aria-label", t("cartTitle"));
+    document.querySelectorAll("button[data-cart-close]").forEach((node) => node.setAttribute("aria-label", t("close")));
   }
 
   function renderAll() {
@@ -395,19 +417,23 @@
   }
 
   function openDrawer() {
+    if (!document.body.classList.contains("cart-open")) drawerOpener = document.activeElement;
     renderAll();
     document.querySelector(".cart-overlay")?.removeAttribute("hidden");
     document.querySelector(".cart-drawer")?.removeAttribute("hidden");
     document.body.classList.add("cart-open");
+    document.querySelector(".cart-drawer button[data-cart-close]")?.focus();
   }
 
   function closeDrawer() {
     document.querySelector(".cart-overlay")?.setAttribute("hidden", "");
     document.querySelector(".cart-drawer")?.setAttribute("hidden", "");
     document.body.classList.remove("cart-open");
+    drawerOpener?.focus();
   }
 
   async function submitOrder(form) {
+    if (form.dataset.cartSubmitting === "1") return;
     const status = form.querySelector("[data-cart-status]");
     const items = readCart();
     const total = cartTotal(items);
@@ -457,6 +483,19 @@
         form.querySelector("button[type='submit']").disabled = false;
         return;
       }
+      if (response.status === 409) {
+        const updated = await response.json();
+        if (!Array.isArray(updated.items)) throw new Error("Order failed");
+        delete form.dataset.cartSubmitting;
+        status.dataset.cartSticky = "1";
+        status.textContent = t("catalogChanged");
+        // Keep additions from another tab while refreshing submitted positions.
+        const fresh = new Map(updated.items.map((item) => [item.sku, item]));
+        writeCart(readCart().map((item) => fresh.has(item.sku)
+          ? { ...fresh.get(item.sku), requestQty: cleanQty(item.requestQty, fresh.get(item.sku).stock) }
+          : item));
+        return;
+      }
       if (!response.ok) {
         let message = "";
         try { message = (await response.json()).error || ""; } catch {}
@@ -465,7 +504,10 @@
       delete form.dataset.cartSubmitting;
       setSuccessMessage(true);
       form.reset();
-      writeCart([]);
+      // A different tab may have added products while the request was in flight.
+      const submitted = new Map(items.map((item) => [item.sku, item.requestQty]));
+      writeCart(readCart().map((item) => ({ ...item, requestQty: item.requestQty - (submitted.get(item.sku) || 0) }))
+        .filter((item) => item.requestQty > 0));
       renderAll();
       const pageStatus = document.querySelector("[data-cart-page-status]");
       if (pageStatus) pageStatus.textContent = t("sent");
@@ -480,6 +522,18 @@
   }
 
   function bind() {
+    document.addEventListener("keydown", (event) => {
+      if (!document.body.classList.contains("cart-open")) return;
+      if (event.key === "Escape") { event.preventDefault(); closeDrawer(); return; }
+      if (event.key !== "Tab") return;
+      const nodes = [...document.querySelectorAll(".cart-drawer a[href], .cart-drawer button:not(:disabled), .cart-drawer input:not(:disabled)")];
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !nodes.includes(document.activeElement))) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !nodes.includes(document.activeElement))) {
+        event.preventDefault(); first?.focus();
+      }
+    });
     document.addEventListener("click", (event) => {
       const addButton = event.target.closest("[data-cart-add]");
       if (addButton) {

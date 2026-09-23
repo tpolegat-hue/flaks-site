@@ -1,6 +1,7 @@
 (() => {
   const params = new URLSearchParams(window.location.search);
-  const stored = localStorage.getItem("flaks-lang");
+  let stored;
+  try { stored = localStorage.getItem("flaks-lang"); } catch { /* Optional preference. */ }
   const initialLang = params.get("lang") === "ru" || params.get("lang") === "uk" ? params.get("lang") : stored === "ru" ? "ru" : "uk";
 
   function withLang(href, lang) {
@@ -12,7 +13,12 @@
 
   function applyLang(lang) {
     document.documentElement.lang = lang;
-    localStorage.setItem("flaks-lang", lang);
+    try { localStorage.setItem("flaks-lang", lang); } catch { /* Optional preference. */ }
+    // A reload must keep the language the visitor just selected.
+    const currentUrl = new URL(window.location.href);
+    if (lang === "ru") currentUrl.searchParams.set("lang", "ru");
+    else currentUrl.searchParams.delete("lang");
+    window.history.replaceState({}, "", currentUrl);
 
     document.querySelectorAll("[data-lang-content]").forEach((node) => {
       node.hidden = node.dataset.langContent !== lang;

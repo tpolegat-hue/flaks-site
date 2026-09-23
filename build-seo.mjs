@@ -10,6 +10,11 @@ const dataText = await fs.readFile(path.join(root, "data.js"), "utf8");
 const data = JSON.parse(dataText.replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, "").replace(/;\s*$/, ""));
 const dataHash = crypto.createHash("sha256").update(dataText).digest("hex").slice(0, 12);
 const versionedDataFile = `data.${dataHash}.js`;
+// A statically required JSON file is bundled with the order function by Vercel.
+// It contains only public product information, never customer or supplier data.
+const orderCatalog = Object.fromEntries(data.products.map((p) => [p.sku, {
+  nameUa: p.nameUa, nameRu: p.nameRu, price: p.price, stock: p.qty,
+}]));
 
 const productDir = path.join(root, "products");
 const categoryDir = path.join(root, "catalog");
@@ -55,6 +60,9 @@ async function writeBatched(items, writer, batchSize = 150) {
     await Promise.all(items.slice(index, index + batchSize).map((item) => withWriteRetry(() => writer(item))));
   }
 }
+
+await fs.mkdir(path.join(root, "lib"), { recursive: true });
+await writeIfChanged(path.join(root, "lib", "order-catalog.json"), JSON.stringify(orderCatalog) + "\n");
 
 async function refreshVersionedDataFile() {
   for (const entry of await fs.readdir(root, { withFileTypes: true })) {

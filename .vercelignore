@@ -21,3 +21,13 @@ flaks-screenshot-updated.png
 articles/template.html
 articles/README.md
 ИСПРАВЛЕНИЯ.md
+# Private imports, reports and development tools must never be public assets.
+**/*.xlsx
+**/*.xls
+**/*.csv
+**/*.tsv
+.env*
+tests/
+docs/
+audit-site.mjs
+optimize-images.py
