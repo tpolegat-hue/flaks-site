@@ -151,19 +151,6 @@ function fittingTitle(candidates) {
   return candidates.find((title) => title.length <= 65) ?? candidates[candidates.length - 1];
 }
 
-function compactTitle(title, maxLength = 65) {
-  const clean = String(title || "").replace(/\s+/g, " ").trim();
-  if (clean.length <= maxLength) return clean;
-
-  const suffixMatch = clean.match(/\s\|\sFLAKS$/);
-  const suffix = suffixMatch ? suffixMatch[0] : "";
-  const body = suffix ? clean.slice(0, -suffix.length) : clean;
-  const available = maxLength - suffix.length - 1;
-  if (available <= 10) return clean.slice(0, maxLength - 3).trimEnd() + "...";
-
-  return `${body.slice(0, available).trimEnd()}...${suffix}`;
-}
-
 function categoryStats(products) {
   let minPrice = Infinity;
   const diameters = [];
@@ -419,7 +406,11 @@ function pagination(category, currentPage, totalPages) {
 // `pathname` is the language-independent path, e.g. "/catalog/plashki.html".
 // Ukrainian keeps it as is; Russian is served from the same path under /ru.
 function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk, descriptionRu = descriptionUk, lang = "uk", og = {}) {
-  const title = compactTitle(lang === "ru" ? titleRu : titleUk);
+  // No blunt truncation here: fittingTitle picks a phrasing that fits, and when
+  // a tool name alone is longer than that, cutting it mid-word would throw the
+  // steel grade and the size out of the title while Google would have trimmed
+  // the display anyway. audit-site.mjs reports what runs long.
+  const title = lang === "ru" ? titleRu : titleUk;
   const description = lang === "ru" ? descriptionRu : descriptionUk;
   // vercel.json sets trailingSlash:false, so the Russian root is /ru, not /ru/.
   const pathFor = (target) => (target === "ru" ? `/ru${pathname === "/" ? "" : pathname}` : pathname);
@@ -746,27 +737,52 @@ for (const sections of sectionsByCategory.values()) {
 // longer reads the "М" of a gear cutter's module as one.
 // ---------------------------------------------------------------------------
 const FACET_MIN_PRODUCTS = 20;
+// The gear-cutting category is a tenth the size of the tap categories, so the
+// same absolute cut-off would leave it with next to nothing. Ten hobbing
+// cutters of one module is still a real answer to "фреза червячная модуль 3",
+// which is a precise query and not a browsing one.
+const MODULE_FACET_MIN_PRODUCTS = 10;
+
+const FACET_KINDS = {
+  thread: {
+    eyebrowUa: "Розмір різьби", eyebrowRu: "Размер резьбы",
+    listUa: "Розміри різьби", listRu: "Размеры резьбы",
+    withUa: "з різьбою", withRu: "с резьбой",
+  },
+  module: {
+    eyebrowUa: "Модуль зачеплення", eyebrowRu: "Модуль зацепления",
+    listUa: "Модулі", listRu: "Модули",
+    withUa: "з модулем", withRu: "с модулем",
+  },
+};
 
 const facetsByCategory = new Map();
 {
   for (const category of data.categories) {
-    const groups = new Map();
+    const threads = new Map();
+    const modules = new Map();
     for (const product of data.products) {
       if (product.categorySlug !== category.slug) continue;
       const specs = specsBySku.get(product.sku);
-      if (specs.threadKind !== "metric" || !specs.thread) continue;
-      // М24, М24×1.5 and М24×2 are one shelf. The buyer looks for the diameter
-      // first and picks the pitch out of the table once he is on the page;
-      // splitting by pitch would scatter this into dozens of thin pages.
-      const nominal = `М${specs.thread.slice(1).split("×")[0]}`;
-      if (!groups.has(nominal)) groups.set(nominal, []);
-      groups.get(nominal).push(product);
+      if (specs.threadKind === "metric" && specs.thread) {
+        // М24, М24×1.5 and М24×2 are one shelf. The buyer looks for the diameter
+        // first and picks the pitch out of the table once he is on the page;
+        // splitting by pitch would scatter this into dozens of thin pages.
+        const nominal = `М${specs.thread.slice(1).split("×")[0]}`;
+        if (!threads.has(nominal)) threads.set(nominal, []);
+        threads.get(nominal).push(product);
+      } else if (specs.gearModule) {
+        if (!modules.has(specs.gearModule)) modules.set(specs.gearModule, []);
+        modules.get(specs.gearModule).push(product);
+      }
     }
 
     const facets = [];
-    for (const [nominal, items] of groups) {
-      if (items.length < FACET_MIN_PRODUCTS) continue;
-      const base = `${category.slug}-${slugify(nominal)}`;
+    const add = (kind, value, items, minProducts) => {
+      if (items.length < minProducts) return;
+      const isThread = kind === "thread";
+      const suffix = isThread ? value : `модуль ${value}`;
+      const base = `${category.slug}-${isThread ? slugify(value) : `modul-${slugify(value)}`}`;
       let slug = base;
       for (let n = 2; reservedCatalogNames.has(`${slug}.html`); n++) slug = `${base}-${n}`;
       reservedCatalogNames.add(`${slug}.html`);
@@ -774,19 +790,25 @@ const facetsByCategory = new Map();
         reservedCatalogNames.add(`${slug}-page-${n}.html`);
       }
       facets.push({
+        kind,
         slug,
-        thread: nominal,
+        suffix,
+        // Short form for the size list and the breadcrumb leaf.
+        short: isThread ? value : `m ${value}`,
+        sortKey: parseFloat(isThread ? value.slice(1) : value),
         // The category name stays in the heading: seven tap categories carry an
         // М27, and "Мітчики М27" seven times over would have them compete with
         // each other for the same query.
-        ua: `${category.ua} ${nominal}`,
-        ru: `${category.ru} ${nominal}`,
+        ua: `${category.ua} ${suffix}`,
+        ru: `${category.ru} ${suffix}`,
         category,
         products: items,
       });
-    }
-    // Ascending by thread size reads like a size chart, which is what it is.
-    facets.sort((a, b) => parseFloat(a.thread.slice(1)) - parseFloat(b.thread.slice(1)));
+    };
+    for (const [value, items] of threads) add("thread", value, items, FACET_MIN_PRODUCTS);
+    for (const [value, items] of modules) add("module", value, items, MODULE_FACET_MIN_PRODUCTS);
+    // Ascending reads like a size chart, which is what it is.
+    facets.sort((a, b) => a.sortKey - b.sortKey);
     if (facets.length) facetsByCategory.set(category.slug, facets);
   }
 }
@@ -803,9 +825,12 @@ for (const facets of facetsByCategory.values()) {
 function facetLinksHtml(categorySlug, current = null) {
   const facets = facetsByCategory.get(categorySlug) || [];
   if (!facets.length) return "";
+  // A category carries one kind of facet or the other: taps have threads, gear
+  // cutters have modules.
+  const kind = FACET_KINDS[facets[0].kind];
   const items = facets
     .map((facet) => {
-      const label = esc(facet.thread);
+      const label = esc(facet.short);
       const count = `<small>${facet.products.length}</small>`;
       return facet.slug === current
         ? `<li><span aria-current="page">${label}</span> ${count}</li>`
@@ -813,7 +838,7 @@ function facetLinksHtml(categorySlug, current = null) {
     })
     .join("");
   return `<section class="content-section seo-facets">
-        <h2>${bilingual("Розміри різьби", "Размеры резьбы")}</h2>
+        <h2>${bilingual(kind.listUa, kind.listRu)}</h2>
         <ul class="facet-links">${items}</ul>
       </section>`;
 }
@@ -1160,10 +1185,10 @@ const facetPageWrites = [];
 function facetBreadcrumbHtml(facet, pageNumber) {
   const self =
     pageNumber > 1
-      ? `<a href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${esc(facet.thread)}</a>
+      ? `<a href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${esc(facet.short)}</a>
       <span aria-hidden="true">›</span>
       <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
-      : `<span aria-current="page">${esc(facet.thread)}</span>`;
+      : `<span aria-current="page">${esc(facet.short)}</span>`;
   return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
@@ -1185,7 +1210,7 @@ function facetBreadcrumbJsonLd(facet, pageNumber) {
       name: inLang(facet.category.ua, facet.category.ru),
       item: absUrl(`/catalog/${facet.category.slug}.html`),
     },
-    { "@type": "ListItem", position: 4, name: facet.thread, item: absUrl(`/catalog/${facet.slug}.html`) },
+    { "@type": "ListItem", position: 4, name: facet.short, item: absUrl(`/catalog/${facet.slug}.html`) },
   ];
   if (pageNumber > 1) {
     items.push({
@@ -1211,16 +1236,24 @@ function facetPitches(facet) {
 
 function facetSeoTextHtml(facet, stats, count) {
   const kind = TOOL_KINDS[stats.kindId];
-  const pitches = facetPitches(facet);
+  const facetKind = FACET_KINDS[facet.kind];
+  const value = facet.kind === "thread" ? facet.suffix : facet.suffix.replace("модуль ", "");
   const partsUa = [
-    `${facet.category.ua} з різьбою ${facet.thread} зі складу FLAKS у Харкові: ${count} ${ukPlural(count, "позиція", "позиції", "позицій")} для ${kind.purposeUa}.`,
+    `${facet.category.ua} ${facetKind.withUa} ${value} зі складу FLAKS у Харкові: ${count} ${ukPlural(count, "позиція", "позиції", "позицій")} для ${kind.purposeUa}.`,
   ];
   const partsRu = [
-    `${facet.category.ru} с резьбой ${facet.thread} со склада FLAKS в Харькове: ${count} ${ukPlural(count, "позиция", "позиции", "позиций")} для ${kind.purposeRu}.`,
+    `${facet.category.ru} ${facetKind.withRu} ${value} со склада FLAKS в Харькове: ${count} ${ukPlural(count, "позиция", "позиции", "позиций")} для ${kind.purposeRu}.`,
   ];
+  // The one thing a size page can say that its category page cannot: what is
+  // actually stocked at this size.
+  const pitches = facet.kind === "thread" ? facetPitches(facet) : [];
   if (pitches.length) {
     partsUa.push(`Кроки різьби в наявності: ${pitches.join(", ")} мм.`);
     partsRu.push(`Шаги резьбы в наличии: ${pitches.join(", ")} мм.`);
+  }
+  if (facet.kind === "module" && stats.diaMin && stats.diaMax && stats.diaMin !== stats.diaMax) {
+    partsUa.push(`Зовнішні діаметри: від ${stats.diaMin} до ${stats.diaMax} мм.`);
+    partsRu.push(`Наружные диаметры: от ${stats.diaMin} до ${stats.diaMax} мм.`);
   }
   if (stats.materials.length) {
     partsUa.push(`Матеріали: ${stats.materials.join(", ")}.`);
@@ -1244,7 +1277,7 @@ function facetSeoTextHtml(facet, stats, count) {
   ];
 
   return `<section class="content-section seo-prose">
-        <h2>${bilingual(`${facet.category.ua} ${facet.thread} — асортимент і ціни`, `${facet.category.ru} ${facet.thread} — ассортимент и цены`)}</h2>
+        <h2>${bilingual(`${facet.ua} — асортимент і ціни`, `${facet.ru} — ассортимент и цены`)}</h2>
         <p>${bilingual(partsUa.join(" "), partsRu.join(" "))}</p>
         <p class="seo-note">${bilingual("Дивіться також:", "Смотрите также:")} ${links.join(" · ")}</p>
       </section>`;
@@ -1282,24 +1315,26 @@ for (const facets of facetsByCategory.values()) {
             `${facet.ru} | FLAKS`,
           ])
         : `${facet.ru}, страница ${pageNumber} | FLAKS`;
+      const facetKind = FACET_KINDS[facet.kind];
+      const facetValue = facet.kind === "thread" ? facet.suffix : facet.suffix.replace("модуль ", "");
       const description = isFirstPage
-        ? `${facet.category.ua} з різьбою ${facet.thread}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
+        ? `${facet.category.ua} ${facetKind.withUa} ${facetValue}: ${products.length} ${ukPlural(products.length, "позиція", "позиції", "позицій")} зі складу у Харкові, ціна від ${stats.minPrice} грн без ПДВ. Відправлення по всій Україні, опт і роздріб.`
         : `${facet.ua}: позиції ${rangeStart}-${rangeEnd} із ${products.length} зі складу. Ціни в гривні без ПДВ.`;
       const descriptionRu = isFirstPage
-        ? `${facet.category.ru} с резьбой ${facet.thread}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Отправка по всей Украине, опт и розница.`
+        ? `${facet.category.ru} ${facetKind.withRu} ${facetValue}: ${products.length} ${ukPlural(products.length, "позиция", "позиции", "позиций")} со склада в Харькове, цена от ${stats.minPrice} грн без НДС. Отправка по всей Украине, опт и розница.`
         : `${facet.ru}: позиции ${rangeStart}-${rangeEnd} из ${products.length} со склада. Цены в гривне без НДС.`;
 
       const body = `${facetBreadcrumbHtml(facet, pageNumber)}
       <section class="seo-hero">
-        <p class="eyebrow">${bilingual("Розмір різьби", "Размер резьбы")}</p>
+        <p class="eyebrow">${bilingual(facetKind.eyebrowUa, facetKind.eyebrowRu)}</p>
         <h1>${bilingual(facet.ua, facet.ru)}</h1>
         <p>${bilingual(description, descriptionRu)}</p>
       </section>
       ${pagination(facet, pageNumber, totalPages)}
       <section class="seo-table-wrap">
         <p class="seo-note">${bilingual(
-          `Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. Крок різьби, виконання та виробник — у назві позиції.`,
-          `Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. Шаг резьбы, исполнение и производитель — в названии позиции.`,
+          `Показано позиції ${rangeStart}-${rangeEnd} із ${products.length}. ${facet.kind === "thread" ? "Крок різьби, виконання" : "Клас точності, кут"} та виробник — у назві позиції.`,
+          `Показаны позиции ${rangeStart}-${rangeEnd} из ${products.length}. ${facet.kind === "thread" ? "Шаг резьбы, исполнение" : "Класс точности, угол"} и производитель — в названии позиции.`,
         )}</p>
         <table>
           ${productTableHeadHtml()}
@@ -1321,8 +1356,8 @@ for (const facets of facetsByCategory.values()) {
             "@type": "CollectionPage",
             name: `${inLang(facet.ua, facet.ru)} | FLAKS`,
             description: inLang(
-              `${facet.category.ua} з різьбою ${facet.thread} зі складу FLAKS. Ціни в гривні без ПДВ.`,
-              `${facet.category.ru} с резьбой ${facet.thread} со склада FLAKS. Цены в гривне без НДС.`,
+              `${facet.category.ua} ${facetKind.withUa} ${facetValue} зі складу FLAKS. Ціни в гривні без ПДВ.`,
+              `${facet.category.ru} ${facetKind.withRu} ${facetValue} со склада FLAKS. Цены в гривне без НДС.`,
             ),
             url: absUrl(href),
             isPartOf: absUrl(`/catalog/${facet.category.slug}.html`),
@@ -1392,8 +1427,16 @@ function categoryCardsHtml(prefix) {
   const catUa = ukPlural(categorySummaries.length, "категорія", "категорії", "категорій");
   const catRu = ukPlural(categorySummaries.length, "категория", "категории", "категорий");
 
-  const title = `Каталог металорізального інструменту — ${categorySummaries.length} ${catUa}, ціна від ${catalogMinPrice} грн | FLAKS`;
-  const titleRu = `Каталог металлорежущего инструмента — ${categorySummaries.length} ${catRu}, цена от ${catalogMinPrice} грн | FLAKS`;
+  const title = fittingTitle([
+    `Каталог металорізального інструменту — ${categorySummaries.length} ${catUa}, ціна від ${catalogMinPrice} грн | FLAKS`,
+    `Каталог металорізального інструменту — ${categorySummaries.length} ${catUa} | FLAKS`,
+    `Каталог металорізального інструменту | FLAKS`,
+  ]);
+  const titleRu = fittingTitle([
+    `Каталог металлорежущего инструмента — ${categorySummaries.length} ${catRu}, цена от ${catalogMinPrice} грн | FLAKS`,
+    `Каталог металлорежущего инструмента — ${categorySummaries.length} ${catRu} | FLAKS`,
+    `Каталог металлорежущего инструмента | FLAKS`,
+  ]);
   const description = `Каталог FLAKS: ${categorySummaries.length} ${catUa} та ${groupDigits(catalogTotalCount)} ${posUa} металорізального інструменту зі складу у Харкові. Мітчики, плашки, свердла, фрези, розгортки та зенкери. Ціни в гривні без ПДВ, від ${catalogMinPrice} грн.`;
   const descriptionRu = `Каталог FLAKS: ${categorySummaries.length} ${catRu} и ${groupDigits(catalogTotalCount)} ${posRu} металлорежущего инструмента со склада в Харькове. Метчики, плашки, сверла, фрезы, развертки и зенкеры. Цены в гривне без НДС, от ${catalogMinPrice} грн.`;
 
@@ -1657,8 +1700,8 @@ function relatedHtml(product) {
     ...(facet
       ? [
           `<a class="seo-related-all" href="../catalog/${esc(facet.slug)}.html" data-keep-lang>${bilingual(
-            `Усі ${facet.category.ua.toLowerCase()} ${facet.thread}`,
-            `Все ${facet.category.ru.toLowerCase()} ${facet.thread}`,
+            `Усі ${facet.category.ua.toLowerCase()} ${facet.suffix}`,
+            `Все ${facet.category.ru.toLowerCase()} ${facet.suffix}`,
           )}</a>`,
         ]
       : []),

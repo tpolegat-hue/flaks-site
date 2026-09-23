@@ -197,13 +197,16 @@ export function parseSpecs(product) {
 
   // Shank diameter first, then strip it so it does not shadow the main diameter.
   const shankMatch =
-    text.match(/(?:ф\s*хвостовика|фхвостовика|хвостовик[а-я]*\s*ф)\s*=?\s*(\d+(?:[.,]\d+)?)/i) ||
+    // "хв.ф=3.2" is the shank too; without this it was read as the main diameter.
+    text.match(/(?:ф\s*хвостовика|фхвостовика|хвостовик[а-я]*\s*ф|хв\.?\s*ф)\s*=?\s*(\d+(?:[.,]\d+)?)/i) ||
     text.match(/хвостовик[а-я]*\s*=?\s*(\d+(?:[.,]\d+)?)\s*мм/i);
   const shankDia = shankMatch ? num(shankMatch[1]) : "";
   const work = shankMatch ? text.replace(shankMatch[0], " ") : text;
 
-  // Main diameter (ф / Ø / диаметр), not part of the shank.
-  const diaMatch = work.match(/(?:ф|Ø|⌀|диаметр|діаметр)\s*=?\s*(\d+(?:[.,]\d+)?)/i);
+  // Main diameter (ф / Ø / диаметр), not part of the shank. The boundary guard
+  // keeps the "Ф3" of a steel grade out: Р6М5Ф3 and Р12Ф2К8М3 were being read
+  // as Ø3 and Ø2 on tools 100 mm across.
+  const diaMatch = work.match(/(?:^|[\s(\/\\=])(?:ф|Ø|⌀|диаметр|діаметр)\s*=?\s*(\d+(?:[.,]\d+)?)/i);
   const diameter = diaMatch ? num(diaMatch[1]) : "";
 
   // "М 12", "М 2х0.4" — but the same letter means two different things.
@@ -229,7 +232,9 @@ export function parseSpecs(product) {
   const special = text.match(/\b(UNC|UNF|UNEF|BSW|BSF|Rp|Rc|Rd|Тр|Tr)\s*\.?\s*(\d+(?:[\\/]\d+)?(?:[.,]\d+)?)/i) ||
     text.match(/\b(G|W|K)\s*(\d+(?:[\\/]\d+)?(?:[.,]\d+)?)/);
   const metric = mNumber && THREADING_KINDS.has(kindId) ? mNumber : null;
-  const gearModule = mNumber && isGearTool ? num(mNumber[1]) : "";
+  // Normalised: the price list writes the same module as "М 7", "М 7.0" and
+  // "М 07", and those are one module, not three.
+  const gearModule = mNumber && isGearTool ? String(Number(num(mNumber[1]))) : "";
   let thread = "";
   let threadKind = "";
   if (metric) {
