@@ -487,7 +487,7 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
       <strong>FLAKS</strong>
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
       <a href="${inTree}catalog"><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
-      <a href="${inTree}index.html#catalog"><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
+      <a href="${shared}index.html${lang === "ru" ? "?lang=ru" : ""}#catalog"><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
       <a href="${shared}delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
       <a href="${shared}payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
       <a href="${shared}returns.html" data-keep-lang><span data-lang-content="uk">Повернення</span><span data-lang-content="ru" hidden>Возврат</span></a>
@@ -1557,7 +1557,7 @@ function categoryCardsHtml(prefix) {
         <p>${bilingual(description, descriptionRu)}</p>
         <div class="hero-actions">
           <a class="primary-button" href="catalog">${bilingual("Відкрити каталог", "Открыть каталог")}</a>
-          <a class="secondary-button" href="../index.html#catalog">${bilingual("Пошук по каталогу", "Поиск по каталогу")}</a>
+          <a class="secondary-button" href="../index.html?lang=ru#catalog">${bilingual("Пошук по каталогу", "Поиск по каталогу")}</a>
         </div>
       </section>
       <section class="content-section">

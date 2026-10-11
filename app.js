@@ -410,8 +410,8 @@ function requestHref(product) {
 }
 
 function productPageHref(product) {
-  const suffix = state.lang === "ru" ? "?lang=ru" : "";
-  return `products/${encodeURIComponent(product.sku.toLowerCase())}.html${suffix}`;
+  const prefix = state.lang === "ru" ? "/ru" : "";
+  return `${prefix}/products/${encodeURIComponent(product.sku.toLowerCase())}.html`;
 }
 
 function cartButtonAttrs(product) {

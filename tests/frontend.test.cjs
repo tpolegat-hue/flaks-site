@@ -81,7 +81,7 @@ function searchHarness(storedLang) {
     localStorage: { getItem: () => { if (storedLang === 'blocked') throw new Error(); return storedLang; } },
   };
   const source = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8')
-    .replace(/\ninit\(\);\s*$/, '\nglobalThis.searchTest = { state, filteredProducts, formatPrice };');
+    .replace(/\ninit\(\);\s*$/, '\nglobalThis.searchTest = { state, filteredProducts, formatPrice, productPageHref };');
   vm.runInNewContext(source, context); return context.searchTest;
 }
 
@@ -104,4 +104,28 @@ test('price sorting stays correct after locale/collator optimization', () => {
   const s = searchHarness('ru'); s.state.sort = 'priceAsc';
   const list = s.filteredProducts();
   assert.ok(list.every((p, i) => i === 0 || p.price >= list[i - 1].price));
+});
+
+test('search product links point to the selected language tree', () => {
+  const s = searchHarness('ru');
+  assert.equal(s.productPageHref({ sku: 'FLK-12037' }), '/ru/products/flk-12037.html');
+  s.state.lang = 'uk';
+  assert.equal(s.productPageHref({ sku: 'FLK-12037' }), '/products/flk-12037.html');
+});
+
+test('generated search links reach the interactive catalog and preserve language', () => {
+  for (const file of ['ru/index.html', 'ru/catalog/index.html', 'ru/catalog/frezy-diskovye.html', 'ru/products/flk-12037.html', 'products/flk-12037.html']) {
+    const html = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    const links = [...html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>(?:Поиск|Пошук) по каталогу<\/a>/g)];
+    assert.ok(links.length, `${file}: missing search link`);
+    for (const [, href] of links) {
+      const url = new URL(href, `https://www.flaks.com.ua/${file}`);
+      assert.equal(url.pathname, '/index.html', file);
+      assert.equal(url.hash, '#catalog', file);
+      assert.equal(url.searchParams.get('lang'), file.startsWith('ru/') ? 'ru' : null, file);
+    }
+  }
+  const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(index, /id="catalog"/);
+  assert.match(index, /id="searchInput"/);
 });

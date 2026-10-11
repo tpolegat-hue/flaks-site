@@ -14,8 +14,17 @@ async function main() {
       assert.equal(r.status, 200, `${origin}/${file}`);
       assert.equal(normalize(await r.text()), normalize(fs.readFileSync(path.join(root, file), 'utf8')), `${origin}/${file} is not current`);
     }));
-    await Promise.all(['/', '/cart.html', '/catalog/frezy-diskovye.html', '/products/flk-12037.html', '/ru/products/flk-12037.html', '/robots.txt', '/sitemap.xml'].map(async (file) => {
+    await Promise.all(['/', '/cart.html', '/catalog/frezy-diskovye.html', '/products/flk-12037.html', '/ru/products/flk-12037.html', '/ru/index.html', '/ru/catalog/frezy-diskovye.html', '/robots.txt', '/sitemap.xml'].map(async (file) => {
       const r = await get(origin + file); assert.equal(r.status, 200, origin + file);
+      if (file.startsWith('/ru/')) {
+        const html = await r.text();
+        const links = [...html.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>Поиск по каталогу<\/a>/g)];
+        assert.ok(links.length, `${file}: search link missing`);
+        for (const [, href] of links) {
+          const url = new URL(href, origin + file);
+          assert.equal(url.pathname + url.search + url.hash, '/index.html?lang=ru#catalog', `${origin}${file}: search target`);
+        }
+      }
     }));
     const method = await get(origin + '/api/order');
     assert.equal(method.status, 405, `${origin}: API must be running and reject GET`);
