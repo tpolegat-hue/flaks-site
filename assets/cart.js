@@ -101,6 +101,10 @@
     return texts[lang()][key] || key;
   }
 
+  function catalogHref() {
+    return `/index.html${lang() === "ru" ? "?lang=ru" : ""}#catalog`;
+  }
+
   function readCart() {
     if (storageFailed) return memoryCart.map((item) => ({ ...item }));
     try {
@@ -324,7 +328,7 @@
         <p>${escapeHtml(t("sent"))}</p>
       </div>
       <div class="hero-actions">
-        <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
+        <a class="primary-button" href="${catalogHref()}">${escapeHtml(t("continue"))}</a>
         <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
       </div>`;
     }
@@ -332,7 +336,7 @@
     if (!items.length) {
       return `<p class="cart-empty">${escapeHtml(t("empty"))}</p>
         <div class="hero-actions">
-          <a class="primary-button" href="/index.html#catalog">${escapeHtml(t("continue"))}</a>
+          <a class="primary-button" href="${catalogHref()}">${escapeHtml(t("continue"))}</a>
           <a class="secondary-button" href="tel:${TELEPHONE}">${escapeHtml(t("call"))}</a>
         </div>`;
     }

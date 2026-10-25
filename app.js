@@ -60,6 +60,8 @@ const i18n = {
     helpText: "Надішліть список позицій або артикулів, і ми уточнимо наявність.",
     availableNow: "Доступно зараз",
     found: "позицій знайдено",
+    foundOne: "позицію знайдено",
+    foundFew: "позиції знайдено",
     tableName: "Найменування",
     tableCategory: "Категорія",
     tableQty: "К-сть",
@@ -132,6 +134,8 @@ const i18n = {
     helpText: "Отправьте список позиций или артикулов, и мы уточним наличие.",
     availableNow: "Доступно сейчас",
     found: "позиций найдено",
+    foundOne: "позиция найдена",
+    foundFew: "позиции найдены",
     tableName: "Наименование",
     tableCategory: "Категория",
     tableQty: "Кол-во",
@@ -179,6 +183,7 @@ const els = {
   cards: document.querySelector("#cardsView"),
   table: document.querySelector("#tableView"),
   resultCount: document.querySelector("#resultCount"),
+  resultLabel: document.querySelector('[data-i18n="found"]'),
   pageInfo: document.querySelector("#pageInfo"),
   prev: document.querySelector("#prevPage"),
   next: document.querySelector("#nextPage"),
@@ -189,6 +194,15 @@ const els = {
 
 function t(key) {
   return i18n[state.lang][key] || key;
+}
+
+function foundLabel(count) {
+  const lastTwo = count % 100;
+  if (lastTwo >= 11 && lastTwo <= 14) return t("found");
+  const last = count % 10;
+  if (last === 1) return t("foundOne");
+  if (last >= 2 && last <= 4) return t("foundFew");
+  return t("found");
 }
 
 function productName(product) {
@@ -584,6 +598,7 @@ function render() {
   const pageItems = list.slice(start, start + state.perPage);
 
   els.resultCount.textContent = list.length.toLocaleString(state.lang === "uk" ? "uk-UA" : "ru-UA");
+  els.resultLabel.textContent = foundLabel(list.length);
   els.pageInfo.textContent = `${t("page")} ${state.page} ${t("from")} ${pages}`;
   els.prev.disabled = state.page <= 1;
   els.next.disabled = state.page >= pages;

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../data.js'), 'utf8').replace(/^\uFEFF?window\.FLAKS_DATA\s*=\s*/, '').replace(/;\s*$/, ''));
 
-function cartHarness(initial = '[]', blocked = false, fetchImpl) {
+function cartHarness(initial = '[]', blocked = false, fetchImpl, language = 'uk') {
   const stored = new Map([['flaks-cart', initial]]);
   const storage = {
     getItem: (k) => { if (blocked) throw new Error('blocked'); return stored.get(k) || null; },
@@ -14,13 +14,13 @@ function cartHarness(initial = '[]', blocked = false, fetchImpl) {
   };
   const context = {
     localStorage: storage, sessionStorage: storage, URLSearchParams, CustomEvent: class {},
-    document: { readyState: 'loading', addEventListener() {}, documentElement: { lang: 'uk' }, querySelector: () => null, querySelectorAll: () => [] },
+    document: { readyState: 'loading', addEventListener() {}, documentElement: { lang: language }, querySelector: () => null, querySelectorAll: () => [] },
     window: { dispatchEvent() {} },
     fetch: fetchImpl,
     FormData: class { get(key) { return key === 'phone' ? '+380670000000' : ''; } },
   };
   const source = fs.readFileSync(path.join(__dirname, '../assets/cart.js'), 'utf8')
-    .replace(/\}\)\(\);\s*$/, 'globalThis.cartTest = { readCart, writeCart, addItem, cartTotal, updateQty, submitOrder }; })();');
+    .replace(/\}\)\(\);\s*$/, 'globalThis.cartTest = { readCart, writeCart, addItem, cartTotal, updateQty, submitOrder, cartBodyHtml, setSuccessMessage }; })();');
   vm.runInNewContext(source, context);
   return context.cartTest;
 }
@@ -49,6 +49,15 @@ test('adding a previously saved product refreshes old price and stock', () => {
 
 test('cart money is calculated in kopecks without floating point accumulation', () => {
   const c = cartHarness(); assert.equal(c.cartTotal([{ price: 0.1, requestQty: 3 }]), 0.3);
+});
+
+test('empty and completed Russian carts return to Russian catalog search', () => {
+  const c = cartHarness('[]', false, undefined, 'ru');
+  assert.match(c.cartBodyHtml([], 'page'), /href="\/index\.html\?lang=ru#catalog"/);
+  c.setSuccessMessage(true);
+  assert.match(c.cartBodyHtml([], 'page'), /href="\/index\.html\?lang=ru#catalog"/);
+  const uk = cartHarness();
+  assert.match(uk.cartBodyHtml([], 'page'), /href="\/index\.html#catalog"/);
 });
 
 function checkoutForm() {
@@ -81,7 +90,7 @@ function searchHarness(storedLang) {
     localStorage: { getItem: () => { if (storedLang === 'blocked') throw new Error(); return storedLang; } },
   };
   const source = fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8')
-    .replace(/\ninit\(\);\s*$/, '\nglobalThis.searchTest = { state, filteredProducts, formatPrice, productPageHref };');
+    .replace(/\ninit\(\);\s*$/, '\nglobalThis.searchTest = { state, filteredProducts, formatPrice, productPageHref, foundLabel };');
   vm.runInNewContext(source, context); return context.searchTest;
 }
 
@@ -111,6 +120,19 @@ test('search product links point to the selected language tree', () => {
   assert.equal(s.productPageHref({ sku: 'FLK-12037' }), '/ru/products/flk-12037.html');
   s.state.lang = 'uk';
   assert.equal(s.productPageHref({ sku: 'FLK-12037' }), '/products/flk-12037.html');
+});
+
+test('search result count uses the right Ukrainian and Russian word forms', () => {
+  const s = searchHarness('uk');
+  assert.equal(s.foundLabel(1), 'позицію знайдено');
+  assert.equal(s.foundLabel(2), 'позиції знайдено');
+  assert.equal(s.foundLabel(11), 'позицій знайдено');
+  assert.equal(s.foundLabel(21), 'позицію знайдено');
+  s.state.lang = 'ru';
+  assert.equal(s.foundLabel(1), 'позиция найдена');
+  assert.equal(s.foundLabel(3), 'позиции найдены');
+  assert.equal(s.foundLabel(12), 'позиций найдено');
+  assert.equal(s.foundLabel(25), 'позиций найдено');
 });
 
 test('generated search links reach the interactive catalog and preserve language', () => {
