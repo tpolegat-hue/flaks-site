@@ -14,12 +14,12 @@ import { fileURLToPath } from "node:url";
 const root = process.argv[2] || path.dirname(fileURLToPath(import.meta.url));
 const start = "index.html";
 
-async function isFile(filePath) {
-  try {
-    return (await fs.stat(filePath)).isFile();
-  } catch {
-    return false;
+const fileChecks = new Map();
+function isFile(filePath) {
+  if (!fileChecks.has(filePath)) {
+    fileChecks.set(filePath, fs.stat(filePath).then((stat) => stat.isFile(), () => false));
   }
+  return fileChecks.get(filePath);
 }
 
 // Map an href, relative to the page it appears on, to a file on disk.
@@ -48,9 +48,10 @@ const seen = new Set(entryPoints);
 const depth = new Map(entryPoints.map((p) => [p, 0]));
 const broken = [];
 const queue = [...entryPoints];
+let cursor = 0;
 
-while (queue.length) {
-  const current = queue.shift();
+while (cursor < queue.length) {
+  const current = queue[cursor++];
   if (!current.endsWith(".html")) continue;
   const html = await fs.readFile(path.join(root, current), "utf8");
   for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"/gi)) {
