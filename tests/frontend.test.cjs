@@ -150,4 +150,22 @@ test('generated search links reach the interactive catalog and preserve language
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   assert.match(index, /id="catalog"/);
   assert.match(index, /id="searchInput"/);
+  const popularSearchLinks = [...index.matchAll(/<a\b[^>]*href="\?q=[^"]+#catalog"[^>]*>/g)];
+  assert.equal(popularSearchLinks.length, 8);
+  assert.ok(popularSearchLinks.every(([link]) => link.includes('data-keep-lang')));
+});
+
+test('Russian entry page keeps language on links before catalog JavaScript loads', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const inline = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  let href = '?q=фреза%20Р6М5#catalog';
+  const link = { getAttribute: () => href, setAttribute: (_name, value) => { href = value; } };
+  const context = {
+    URL, URLSearchParams,
+    window: { location: { href: 'https://www.flaks.com.ua/index.html?lang=ru', search: '?lang=ru', hash: '' } },
+    document: { querySelectorAll: (selector) => selector === 'a[data-keep-lang]' ? [link] : [] },
+    localStorage: { getItem: () => null },
+  };
+  vm.runInNewContext(inline, context);
+  assert.equal(href, '/index.html?q=%D1%84%D1%80%D0%B5%D0%B7%D0%B0+%D0%A06%D0%9C5&lang=ru#catalog');
 });

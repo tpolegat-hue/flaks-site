@@ -305,14 +305,14 @@
           <h2 id="popularSearchTitle" data-i18n="popularSearchTitle">Швидко знайти інструмент</h2>
         </div>
         <div class="search-chips">
-          <a href="?q=фреза%20Р6М5#catalog">Фреза Р6М5</a>
-          <a href="?q=сверло%20к%2Fх#catalog">Сверло к/х</a>
-          <a href="?q=метчик%20М10#catalog">Метчик М10</a>
-          <a href="?q=плашка%20М#catalog">Плашка М</a>
-          <a href="?q=развертка#catalog">Развертка</a>
-          <a href="?q=калибр#catalog">Калибр</a>
-          <a href="?q=зенкер#catalog">Зенкер</a>
-          <a href="?q=ф10%20Р6М5#catalog">Ф10 Р6М5</a>
+          <a href="?q=фреза%20Р6М5#catalog" data-keep-lang>Фреза Р6М5</a>
+          <a href="?q=сверло%20к%2Fх#catalog" data-keep-lang>Сверло к/х</a>
+          <a href="?q=метчик%20М10#catalog" data-keep-lang>Метчик М10</a>
+          <a href="?q=плашка%20М#catalog" data-keep-lang>Плашка М</a>
+          <a href="?q=развертка#catalog" data-keep-lang>Развертка</a>
+          <a href="?q=калибр#catalog" data-keep-lang>Калибр</a>
+          <a href="?q=зенкер#catalog" data-keep-lang>Зенкер</a>
+          <a href="?q=ф10%20Р6М5#catalog" data-keep-lang>Ф10 Р6М5</a>
         </div>
       </section>
 
@@ -473,6 +473,17 @@
 
 
         const params = new URLSearchParams(window.location.search);
+        let initialLang = params.get("lang");
+        if (initialLang !== "uk" && initialLang !== "ru") {
+          try { initialLang = localStorage.getItem("flaks-lang"); } catch { /* Optional preference. */ }
+        }
+        if (initialLang === "ru") {
+          document.querySelectorAll("a[data-keep-lang]").forEach((link) => {
+            const url = new URL(link.getAttribute("href"), window.location.href);
+            url.searchParams.set("lang", "ru");
+            link.setAttribute("href", url.pathname + url.search + url.hash);
+          });
+        }
         if (window.location.hash === "#catalog" || params.has("q")) {
           loadCatalog();
         }
