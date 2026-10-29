@@ -28,6 +28,17 @@
       button.classList.toggle("active", button.dataset.lang === lang);
     });
 
+    // The switcher's accessible name has to follow the interface language.
+    document.querySelectorAll(".lang-switch").forEach((node) => {
+      node.setAttribute("aria-label", lang === "ru" ? "Язык" : "Мова");
+    });
+
+    // Bilingual accessible names for landmarks that cannot hold two spans.
+    document.querySelectorAll("[data-aria-uk]").forEach((node) => {
+      const label = lang === "ru" ? node.dataset.ariaRu : node.dataset.ariaUk;
+      if (label) node.setAttribute("aria-label", label);
+    });
+
     const title = document.body.dataset[lang === "ru" ? "titleRu" : "titleUk"];
     const description = document.body.dataset[lang === "ru" ? "descriptionRu" : "descriptionUk"];
     if (title) document.title = title;

@@ -17,10 +17,13 @@
     <link rel="canonical" href="https://www.flaks.com.ua/articles/stal-r6m5-ta-r6m5k5.html" />
     <link rel="icon" type="image/png" href="../assets/favicon-32.png" />
     <link rel="stylesheet" href="../styles.css" />
+    <!-- Google tag (gtag.js) — one cached file for every page. -->
+    <script src="../assets/ga.js" async></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Article",
+        "image": "https://www.flaks.com.ua/assets/flaks-og.jpg",
         "headline": "Сталь Р6М5 та Р6М5К5: різниця і коли вибирати кобальтовий інструмент",
         "author": { "@type": "Organization", "name": "FLAKS" },
         "publisher": {
@@ -199,24 +202,5 @@
     <script src="../assets/seo-lang-switch.js"></script>
     <script src="../assets/cart.js"></script>
     <script src="../assets/motion.js"></script>
-    <script>
-      (() => {
-        const loadGoogleTag = () => {
-          if (window.__flaksGtagLoaded) return;
-          window.__flaksGtagLoaded = true;
-          window.dataLayer = window.dataLayer || [];
-          window.gtag = function gtag(){ window.dataLayer.push(arguments); };
-          window.gtag("js", new Date());
-          window.gtag("config", "G-675L0XL19Y");
-          const script = document.createElement("script");
-          script.async = true;
-          script.src = "https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y";
-          document.head.appendChild(script);
-        };
-        ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
-          window.addEventListener(eventName, loadGoogleTag, { once: true, passive: true });
-        });
-      })();
-    </script>
   </body>
 </html>

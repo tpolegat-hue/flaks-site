@@ -155,17 +155,54 @@ test('generated search links reach the interactive catalog and preserve language
   assert.ok(popularSearchLinks.every(([link]) => link.includes('data-keep-lang')));
 });
 
-test('Russian entry page keeps language on links before catalog JavaScript loads', () => {
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
-  const inline = html.slice(html.lastIndexOf('<script>') + 8, html.lastIndexOf('</script>'));
+test('catalog loader keeps language on links before the catalog JavaScript loads', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../assets/catalog-loader.js'), 'utf8');
   let href = '?q=фреза%20Р6М5#catalog';
   const link = { getAttribute: () => href, setAttribute: (_name, value) => { href = value; } };
   const context = {
     URL, URLSearchParams,
     window: { location: { href: 'https://www.flaks.com.ua/index.html?lang=ru', search: '?lang=ru', hash: '' } },
-    document: { querySelectorAll: (selector) => selector === 'a[data-keep-lang]' ? [link] : [] },
+    document: {
+      currentScript: undefined,
+      querySelector: () => null,
+      querySelectorAll: (selector) => selector === 'a[data-keep-lang]' ? [link] : [],
+    },
     localStorage: { getItem: () => null },
   };
-  vm.runInNewContext(inline, context);
+  vm.runInNewContext(source, context);
   assert.equal(href, '/index.html?q=%D1%84%D1%80%D0%B5%D0%B7%D0%B0+%D0%A06%D0%9C5&lang=ru#catalog');
 });
+
+test('deployed pages carry no inline executable scripts', () => {
+  const pages = ['index.html', 'cart.html', '404.html', 'about.html', 'contacts.html', 'delivery.html', 'payment.html', 'returns.html', 'privacy.html', 'articles/index.html', 'articles/konus-morze-rozmiry.html'];
+  for (const page of pages) {
+    const html = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
+    const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>/g)]
+      .filter(([, attrs]) => !/application\/ld\+json/i.test(attrs));
+    assert.equal(inline.length, 0, `${page}: inline script would be blocked by the CSP`);
+    assert.ok(!/\son(?:load|error|click|change|input|submit)="/.test(html), `${page}: inline event handler would be blocked by the CSP`);
+  }
+});
+
+test('Russian home page links stay inside the Russian tree', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../ru/index.html'), 'utf8');
+  const brand = html.match(/<a class="brand" href="([^"]+)"/)?.[1];
+  assert.equal(brand, '/ru');
+  const catalog = html.match(/<a class="contact-link" href="([^"]+)"[^>]*>Каталог<\/a>/)?.[1];
+  assert.equal(catalog, '/ru/catalog');
+  assert.match(html, /<a class="primary-button" href="\/ru\/catalog">/);
+  const cards = [...html.matchAll(/<a href="([^"]+)" data-keep-lang>/g)].map((match) => match[1]);
+  const categoryCards = cards.filter((href) => href.includes('/catalog/') && href.endsWith('.html'));
+  assert.ok(categoryCards.length > 0, 'category grid is missing');
+  assert.ok(categoryCards.every((href) => href.startsWith('/ru/catalog/')), categoryCards.filter((href) => !href.startsWith('/ru/catalog/')).join(', '));
+});
+
+test('Russian catalog hub links stay inside the Russian tree', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../ru/catalog/index.html'), 'utf8');
+  assert.match(html, /<a href="\/ru" data-keep-lang>Главная<\/a>/);
+  const cards = [...html.matchAll(/<a href="([^"]+)" data-keep-lang>/g)].map((match) => match[1]);
+  const categoryCards = cards.filter((href) => href.includes('/catalog/') && href.endsWith('.html'));
+  assert.ok(categoryCards.length > 0, 'category grid is missing');
+  assert.ok(categoryCards.every((href) => href.startsWith('/ru/catalog/')), categoryCards.filter((href) => !href.startsWith('/ru/catalog/')).join(', '));
+});
+

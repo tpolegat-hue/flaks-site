@@ -1,7 +1,6 @@
 const data = window.FLAKS_DATA;
 const productDiameterCache = new WeakMap();
 const productSearchTextCache = new WeakMap();
-
 const i18n = {
   uk: {
     brandNote: "Металообробний інструмент",
@@ -76,6 +75,16 @@ const i18n = {
     section: "Розділ",
     sku: "Код",
     noResults: "Нічого не знайдено. Спробуйте змінити пошук або категорію.",
+    catalogError: "Каталог тимчасово недоступний. Оновіть сторінку або напишіть на tpolegat@gmail.com.",
+    contactsLabel: "Контакти та мова",
+    statsLabel: "Статистика каталогу",
+    advantagesLabel: "Переваги FLAKS",
+    filtersLabel: "Фільтри каталогу",
+    resetFilters: "Скинути фільтри",
+    viewMode: "Вигляд каталогу",
+    viewTable: "Таблиця",
+    viewCards: "Картки",
+    language: "Мова",
   },
   ru: {
     brandNote: "Металлообрабатывающий инструмент",
@@ -150,6 +159,16 @@ const i18n = {
     section: "Раздел",
     sku: "Код",
     noResults: "Ничего не найдено. Попробуйте изменить поиск или категорию.",
+    catalogError: "Каталог временно недоступен. Обновите страницу или напишите на tpolegat@gmail.com.",
+    contactsLabel: "Контакты и язык",
+    statsLabel: "Статистика каталога",
+    advantagesLabel: "Преимущества FLAKS",
+    filtersLabel: "Фильтры каталога",
+    resetFilters: "Сбросить фильтры",
+    viewMode: "Вид каталога",
+    viewTable: "Таблица",
+    viewCards: "Карточки",
+    language: "Язык",
   },
 };
 
@@ -454,6 +473,16 @@ function translatePage() {
     node.placeholder = t(node.dataset.i18nPlaceholder);
   });
 
+  // Accessible names and tooltips are invisible until a screen reader or a
+  // hover, so they are easy to leave in English on a Ukrainian page.
+  document.querySelectorAll("[data-i18n-aria]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAria));
+  });
+
+  document.querySelectorAll("[data-i18n-title]").forEach((node) => {
+    node.setAttribute("title", t(node.dataset.i18nTitle));
+  });
+
   document.querySelectorAll("[data-lang-content]").forEach((node) => {
     node.hidden = node.dataset.langContent !== state.lang;
   });
@@ -736,6 +765,13 @@ function applyUrlState() {
 }
 
 function init() {
+  // A truncated or missing data.js must not leave a silently empty catalog.
+  if (!data || !Array.isArray(data.products) || !data.products.length) {
+    if (els.resultCount) els.resultCount.textContent = "—";
+    if (els.rows) els.rows.innerHTML = `<tr><td colspan="5">${escapeHtml(t("catalogError"))}</td></tr>`;
+    if (els.cards) els.cards.innerHTML = `<div class="product-card">${escapeHtml(t("catalogError"))}</div>`;
+    return;
+  }
   els.statProducts.textContent = data.products.length.toLocaleString("uk-UA");
   els.statCategories.textContent = data.categories.filter((cat) => cat.count > 0).length.toLocaleString("uk-UA");
   applyUrlState();

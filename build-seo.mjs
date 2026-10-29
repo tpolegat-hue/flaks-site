@@ -397,7 +397,7 @@ function pagination(category, currentPage, totalPages) {
         : `<a href="${href}" data-keep-lang>${label}</a>`,
     );
   }
-  return `<nav class="seo-pagination" aria-label="Catalog pagination">
+  return `<nav class="seo-pagination" aria-label="@@PAGINATION@@">
     <span><span data-lang-content="uk">Сторінка ${currentPage} з ${totalPages}</span><span data-lang-content="ru" hidden>Страница ${currentPage} из ${totalPages}</span></span>
     ${links.join("")}
   </nav>`;
@@ -421,20 +421,16 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
   // Shared files (styles, assets, the hand-written pages) live at the site root,
   // so the Russian tree needs one extra level to climb out of /ru/.
   const shared = up(depth + (lang === "ru" ? 1 : 0));
-  // Catalog, products and the home page exist in both trees: stay in this one.
-  const inTree = up(depth);
+  // Catalog, products and the home page exist in both trees. Root-absolute URLs
+  // are used because "/ru" and "/ru/catalog" are directory indexes served
+  // without a trailing slash: "../catalog" there resolved to the Ukrainian tree.
+  const homeHref = lang === "ru" ? "/ru" : "/";
+  const catalogHref = lang === "ru" ? "/ru/catalog" : "/catalog";
   const html = `<!doctype html>
 <html lang="${lang}">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-675L0XL19Y');
-    </script>
+    <!-- Google tag (gtag.js) — one cached file for every page. -->
+    <script src="${shared}assets/ga.js" async></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="ktStUU9o0Pp1VxKn6AknzUox_oK7NCcKQa6A4uee4-I" />
@@ -448,6 +444,13 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
     <meta property="og:locale" content="${lang === "ru" ? "ru_UA" : "uk_UA"}">
     <meta property="og:url" content="${esc(canonicalUrl)}">
     <meta property="og:image" content="${esc(og.image || `${siteUrl}/assets/flaks-og.jpg`)}">
+    ${og.image ? "" : `<meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    `}<meta property="og:image:alt" content="${esc(title)}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${esc(title)}">
+    <meta name="twitter:description" content="${esc(description)}">
+    <meta name="twitter:image" content="${esc(og.image || `${siteUrl}/assets/flaks-og.jpg`)}">
     <link rel="canonical" href="${esc(canonicalUrl)}">
     <link rel="alternate" hreflang="uk" href="${esc(`${siteUrl}${pathFor("uk")}`)}">
     <link rel="alternate" hreflang="ru" href="${esc(`${siteUrl}${pathFor("ru")}`)}">
@@ -460,12 +463,12 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
   </head>
   <body data-title-uk="${esc(titleUk)}" data-title-ru="${esc(titleRu)}" data-description-uk="${esc(descriptionUk)}" data-description-ru="${esc(descriptionRu)}">
     <header class="topbar">
-      <a class="brand" href="${inTree}index.html">
+      <a class="brand" href="${homeHref}">
         <span class="brand-mark"><img src="${shared}assets/icon-192.png" alt=""></span>
         <span><strong>FLAKS</strong><small><span data-lang-content="uk">Металообробний інструмент</span><span data-lang-content="ru" hidden>Металлообрабатывающий инструмент</span></small></span>
       </a>
       <nav class="top-actions">
-        <a class="contact-link" href="${inTree}catalog"><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
+        <a class="contact-link" href="${catalogHref}"><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
         <a class="contact-link" href="${shared}about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
         <a class="contact-link" href="${shared}delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
         <a class="contact-link" href="${shared}payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
@@ -474,7 +477,7 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
         <button class="cart-nav-button" type="button" data-cart-open><span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span><strong data-cart-count>0</strong></button>
-        <div class="lang-switch" role="group" aria-label="Language">
+        <div class="lang-switch" role="group" aria-label="${lang === "ru" ? "Язык" : "Мова"}">
           <a class="${lang === "uk" ? "active" : ""}" href="${esc(pathFor("uk"))}" hreflang="uk">UA</a>
           <a class="${lang === "ru" ? "active" : ""}" href="${esc(pathFor("ru"))}" hreflang="ru">RU</a>
         </div>
@@ -486,7 +489,7 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
     <footer class="footer">
       <strong>FLAKS</strong>
       <span><span data-lang-content="uk">Ціни в гривні без ПДВ</span><span data-lang-content="ru" hidden>Цены в гривне без НДС</span></span>
-      <a href="${inTree}catalog"><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
+      <a href="${catalogHref}"><span data-lang-content="uk">Усі категорії</span><span data-lang-content="ru" hidden>Все категории</span></a>
       <a href="${shared}index.html${lang === "ru" ? "?lang=ru" : ""}#catalog"><span data-lang-content="uk">Пошук по каталогу</span><span data-lang-content="ru" hidden>Поиск по каталогу</span></a>
       <a href="${shared}delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
       <a href="${shared}payment.html" data-keep-lang><span data-lang-content="uk">Оплата</span><span data-lang-content="ru" hidden>Оплата</span></a>
@@ -495,16 +498,17 @@ function page(titleUk, descriptionUk, body, jsonLd, pathname, titleRu = titleUk,
       <a href="${shared}privacy.html" data-keep-lang><span data-lang-content="uk">Конфіденційність</span><span data-lang-content="ru" hidden>Конфиденциальность</span></a>
       <span>+380 67 545 31 15 · tpolegat@gmail.com</span>
     </footer>
-    <script>
-      // The language of a generated page is fixed by its URL. Remember it so the
-      // hand-written pages (about, cart, articles) open in the same language.
-      try { localStorage.setItem("flaks-lang", "${lang}"); } catch (error) {}
-    </script>
+    <script src="${shared}assets/lang-boot.js"></script>
     <script src="${shared}assets/cart.js"></script>
     <script src="${shared}assets/motion.js"></script>
   </body>
 </html>`;
-  return singleLanguage(html, lang);
+  // Landmark names are built into bodies that are assembled once for both
+  // languages, so they are resolved here, where the page language is known.
+  const localized = html
+    .replaceAll("@@BREADCRUMB@@", lang === "ru" ? "Навигационная цепочка" : "Навігаційний ланцюжок")
+    .replaceAll("@@PAGINATION@@", lang === "ru" ? "Страницы каталога" : "Сторінки каталогу");
+  return singleLanguage(localized, lang);
 }
 
 function productJsonLd(product, specs) {
@@ -522,6 +526,7 @@ function productJsonLd(product, specs) {
     category: inLang(product.categoryUa, product.categoryRu),
     image: merchantImageUrl(product),
     description: buildDescription(product, specs, jsonLdLang === "ru" ? "ru" : "ua"),
+    url: absUrl(`/products/${slugProduct(product)}`),
     offers: {
       "@type": "Offer",
       priceCurrency: "UAH",
@@ -986,7 +991,7 @@ function sectionBreadcrumbHtml(section, pageNumber) {
       <span aria-hidden="true">›</span>
       <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
       : `<span aria-current="page">${bilingual(section.ua, section.ru)}</span>`;
-  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+  return `<nav class="seo-breadcrumb" aria-label="@@BREADCRUMB@@">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
       <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
@@ -1189,7 +1194,7 @@ function facetBreadcrumbHtml(facet, pageNumber) {
       <span aria-hidden="true">›</span>
       <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
       : `<span aria-current="page">${esc(facet.short)}</span>`;
-  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+  return `<nav class="seo-breadcrumb" aria-label="@@BREADCRUMB@@">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
       <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
@@ -1444,8 +1449,8 @@ function categoryCardsHtml(prefix) {
     .map((article) => `<a href="${esc(article.href)}" data-keep-lang>${bilingual(article.ua, article.ru)}</a>`)
     .join(" · ");
 
-  const body = `<nav class="seo-breadcrumb" aria-label="breadcrumb">
-      <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
+  const bodyFor = (lang) => `<nav class="seo-breadcrumb" aria-label="${lang === "ru" ? "Навигационная цепочка" : "Навігаційний ланцюжок"}">
+      <a href="${lang === "ru" ? "/ru" : "/"}" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
       <span aria-current="page">${bilingual("Каталог", "Каталог")}</span>
     </nav>
@@ -1457,7 +1462,7 @@ function categoryCardsHtml(prefix) {
       <section class="content-section">
         <h2>${bilingual("Категорії інструменту", "Категории инструмента")}</h2>
         <div class="category-links">
-        ${categoryCardsHtml("../catalog/")}
+        ${categoryCardsHtml(lang === "ru" ? "/ru/catalog/" : "/catalog/")}
         </div>
       </section>
       <section class="content-section seo-prose">
@@ -1471,6 +1476,7 @@ function categoryCardsHtml(prefix) {
 
   for (const lang of LANGUAGES) {
     jsonLdLang = lang;
+    const body = bodyFor(lang);
     const hubJsonLd = {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
@@ -1556,14 +1562,14 @@ function categoryCardsHtml(prefix) {
         <h1>${bilingual("Металообробний інструмент FLAKS", "Металлорежущий инструмент FLAKS")}</h1>
         <p>${bilingual(description, descriptionRu)}</p>
         <div class="hero-actions">
-          <a class="primary-button" href="catalog">${bilingual("Відкрити каталог", "Открыть каталог")}</a>
+          <a class="primary-button" href="/ru/catalog">${bilingual("Відкрити каталог", "Открыть каталог")}</a>
           <a class="secondary-button" href="../index.html?lang=ru#catalog">${bilingual("Пошук по каталогу", "Поиск по каталогу")}</a>
         </div>
       </section>
       <section class="content-section">
         <h2>${bilingual("Категорії інструменту", "Категории инструмента")}</h2>
         <div class="category-links">
-        ${categoryCardsHtml("catalog/")}
+        ${categoryCardsHtml("/ru/catalog/")}
         </div>
       </section>
       <section class="content-section seo-prose">
@@ -1622,7 +1628,7 @@ function categoryBreadcrumbHtml(category, pageNumber) {
       <span aria-hidden="true">›</span>
       <span aria-current="page">${bilingual(`Сторінка ${pageNumber}`, `Страница ${pageNumber}`)}</span>`
       : `<span aria-current="page">${bilingual(category.ua, category.ru)}</span>`;
-  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+  return `<nav class="seo-breadcrumb" aria-label="@@BREADCRUMB@@">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
       <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>
@@ -1655,7 +1661,7 @@ function breadcrumbHtml(product) {
       <span aria-hidden="true">›</span>
       `
     : "";
-  return `<nav class="seo-breadcrumb" aria-label="breadcrumb">
+  return `<nav class="seo-breadcrumb" aria-label="@@BREADCRUMB@@">
       <a href="../index.html" data-keep-lang>${bilingual("Головна", "Главная")}</a>
       <span aria-hidden="true">›</span>
       <a href="../catalog" data-keep-lang>${bilingual("Каталог", "Каталог")}</a>

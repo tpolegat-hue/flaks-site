@@ -46,6 +46,8 @@
       failed: "Не вдалося відправити заявку. Спробуйте ще раз або напишіть на пошту.",
       call: "Зателефонувати",
       write: "Написати email",
+      consent: "Натискаючи «Відправити заявку», ви погоджуєтесь з",
+      privacy: "політикою конфіденційності",
     },
     ru: {
       cart: "Корзина",
@@ -83,6 +85,8 @@
       failed: "Не удалось отправить заявку. Попробуйте еще раз или напишите на почту.",
       call: "Позвонить",
       write: "Написать email",
+      consent: "Нажимая «Отправить заявку», вы соглашаетесь с",
+      privacy: "политикой конфиденциальности",
     },
   };
 
@@ -288,6 +292,7 @@
       <label><span data-cart-text="comment">${escapeHtml(t("comment"))}</span><textarea name="comment" rows="4"></textarea></label>
       <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
       <button class="primary-button" type="submit" data-cart-text="submit" disabled>${escapeHtml(t("submit"))}</button>
+      <p class="cart-consent"><span data-cart-text="consent"></span> <a href="${privacyHref()}" target="_blank" rel="noopener" data-cart-text="privacy"></a>.</p>
       <p class="cart-status" data-cart-status role="status" aria-live="polite"></p>
     </form>`;
   }
@@ -384,6 +389,10 @@
 
   function cartPageHref() {
     return lang() === "ru" ? "/cart.html?lang=ru" : "/cart.html";
+  }
+
+  function privacyHref() {
+    return lang() === "ru" ? "/privacy.html?lang=ru" : "/privacy.html";
   }
 
   function updateBadges() {

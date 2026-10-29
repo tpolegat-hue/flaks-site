@@ -12,7 +12,10 @@
     <meta name="theme-color" content="#182028" />
     <link rel="canonical" href="https://www.flaks.com.ua/cart.html" />
     <link rel="icon" type="image/png" href="assets/favicon-32.png" />
+    <link rel="manifest" href="site.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
+    <!-- Google tag (gtag.js) — one cached file for every page. -->
+    <script src="assets/ga.js" async></script>
   </head>
   <body
     data-title-uk="Кошик-заявка FLAKS | Оформлення замовлення"
@@ -29,7 +32,7 @@
         </span>
       </a>
 
-      <nav class="top-actions" aria-label="Contacts and language">
+      <nav class="top-actions" aria-label="Контакти та мова" data-aria-uk="Контакти та мова" data-aria-ru="Контакты и язык">
         <a class="contact-link" href="index.html#catalog" data-keep-lang><span data-lang-content="uk">Каталог</span><span data-lang-content="ru" hidden>Каталог</span></a>
         <a class="contact-link" href="about.html" data-keep-lang><span data-lang-content="uk">Про компанію</span><span data-lang-content="ru" hidden>О компании</span></a>
         <a class="contact-link" href="delivery.html" data-keep-lang><span data-lang-content="uk">Доставка</span><span data-lang-content="ru" hidden>Доставка</span></a>
@@ -74,24 +77,5 @@
     <script src="assets/seo-lang-switch.js"></script>
     <script src="assets/cart.js"></script>
     <script src="assets/motion.js"></script>
-    <script>
-      (() => {
-        const loadGoogleTag = () => {
-          if (window.__flaksGtagLoaded) return;
-          window.__flaksGtagLoaded = true;
-          window.dataLayer = window.dataLayer || [];
-          window.gtag = function gtag(){ window.dataLayer.push(arguments); };
-          window.gtag("js", new Date());
-          window.gtag("config", "G-675L0XL19Y");
-          const script = document.createElement("script");
-          script.async = true;
-          script.src = "https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y";
-          document.head.appendChild(script);
-        };
-        ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
-          window.addEventListener(eventName, loadGoogleTag, { once: true, passive: true });
-        });
-      })();
-    </script>
   </body>
 </html>

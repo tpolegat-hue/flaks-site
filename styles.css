@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --bg: #081016;
   --surface: #101a23;
   --surface-2: #172531;
@@ -1361,6 +1361,17 @@ td {
 .cart-empty,
 .cart-status {
   color: var(--muted);
+}
+
+.cart-consent {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cart-consent a {
+  color: var(--accent-2);
 }
 
 .cart-success {

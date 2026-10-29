@@ -3,14 +3,7 @@
   <head>
     <!-- Google tag (gtag.js) — loaded the same way as on the generated catalog and
          product pages, so pageviews are counted consistently across the site. -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-675L0XL19Y"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-675L0XL19Y');
-    </script>
+    <script src="assets/ga.js" async></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google-site-verification" content="ktStUU9o0Pp1VxKn6AknzUox_oK7NCcKQa6A4uee4-I" />
@@ -29,6 +22,13 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="FLAKS" />
     <meta property="og:image" content="https://www.flaks.com.ua/assets/flaks-og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FLAKS — металообробний інструмент" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Металообробний інструмент FLAKS купити в Україні" />
+    <meta name="twitter:description" content="Каталог металообробного інструменту FLAKS: ціни в гривні без ПДВ, наявність, заявки по email і телефону." />
+    <meta name="twitter:image" content="https://www.flaks.com.ua/assets/flaks-og.jpg" />
     <link rel="manifest" href="site.webmanifest" />
     <link rel="sitemap" type="application/xml" href="sitemap.xml" />
     <link rel="canonical" href="https://www.flaks.com.ua/" />
@@ -38,10 +38,9 @@
     <link rel="icon" type="image/png" href="assets/favicon-32.png" />
     <link rel="preload" as="image" href="assets/flaks-hero-480.jpg" imagesrcset="assets/flaks-hero-480.jpg 480w, assets/flaks-hero-640.jpg 640w, assets/flaks-hero.jpg 960w" imagesizes="(max-width: 900px) 100vw, 42vw" fetchpriority="high" />
     <style>
-      :root{color-scheme:light;--bg:#081016;--ink:#edf4fa;--muted:#9aa9b6;--line:rgba(170,190,205,.22);--accent:#1677b8;--shadow:0 22px 54px rgba(0,0,0,.34)}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Manrope","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;line-height:1.45}a{color:inherit}button{font:inherit}.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:72px;padding:12px clamp(16px,4vw,48px);background:rgba(8,16,22,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.brand{display:inline-flex;align-items:center;gap:12px;min-width:0;text-decoration:none}.brand-mark{display:grid;width:54px;height:44px;place-items:center;overflow:hidden;background:#05090d;border:1px solid rgba(185,197,207,.3);border-radius:6px}.brand-mark img{width:100%;height:100%;object-fit:cover;object-position:center}.brand strong{display:block;font-size:19px;letter-spacing:0}.brand small{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.top-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0}.contact-link{color:var(--muted);font-size:14px;overflow-wrap:anywhere;text-decoration:none}.cart-nav-button{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid rgba(112,189,240,.5);border-radius:8px;background:rgba(22,119,184,.2);color:var(--ink);font-weight:800}.cart-nav-button strong{display:inline-grid;min-width:24px;height:24px;place-items:center;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px}.lang-switch{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(16,26,35,.88)}.lang-switch button{min-width:42px;height:36px;border:0;background:transparent;color:var(--muted);cursor:pointer}.lang-switch button.active{background:var(--accent);color:#fff}.hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:clamp(24px,5vw,72px);align-items:center;min-height:480px;padding:clamp(34px,7vw,86px) clamp(16px,4vw,48px) 38px;background:linear-gradient(90deg,rgba(8,16,22,.97),rgba(8,16,22,.82) 58%,rgba(8,16,22,.68)),repeating-linear-gradient(90deg,rgba(199,208,216,.06) 0 1px,transparent 1px 42px)}.hero:after{position:absolute;inset:0;z-index:-1;content:"";background:linear-gradient(180deg,transparent 0,rgba(8,16,22,.34) 52%,var(--bg) 100%),radial-gradient(circle at 78% 34%,rgba(22,119,184,.32),transparent 30%)}.hero-copy{max-width:760px}.eyebrow{margin:0 0 10px;color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}h1,h2{margin:0;letter-spacing:0}.hero-copy h1{max-width:660px;font-size:clamp(24px,3vw,36px);line-height:1.08}.hero-copy p:not(.eyebrow){max-width:660px;margin:20px 0 0;color:#c5d0da;font-size:18px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border:1px solid transparent;border-radius:8px;font-weight:700;text-decoration:none}.primary-button{background:linear-gradient(180deg,#218bd2,#116aa7);color:#fff;box-shadow:0 12px 28px rgba(22,119,184,.28)}.secondary-button{background:rgba(16,26,35,.92);border-color:var(--line);color:var(--ink)}.hero-visual{position:relative;min-height:330px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#05090d;box-shadow:var(--shadow)}.hero-visual img{width:100%;height:100%;min-height:330px;object-fit:cover;object-position:center}@media (max-width:900px){.topbar,.hero{grid-template-columns:1fr}.topbar{align-items:flex-start}.hero{min-height:auto}.hero-visual,.hero-visual img{min-height:220px}}@media (max-width:560px){.topbar{position:static}.brand small{max-width:210px}.top-actions{justify-content:flex-start}.hero-copy h1{font-size:24px}.hero-actions a{width:100%}}
+      :root{color-scheme:dark;--bg:#081016;--ink:#edf4fa;--muted:#9aa9b6;--line:rgba(170,190,205,.22);--accent:#1677b8;--shadow:0 22px 54px rgba(0,0,0,.34)}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Manrope","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;line-height:1.45}a{color:inherit}button{font:inherit}.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:72px;padding:12px clamp(16px,4vw,48px);background:rgba(8,16,22,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}.brand{display:inline-flex;align-items:center;gap:12px;min-width:0;text-decoration:none}.brand-mark{display:grid;width:54px;height:44px;place-items:center;overflow:hidden;background:#05090d;border:1px solid rgba(185,197,207,.3);border-radius:6px}.brand-mark img{width:100%;height:100%;object-fit:cover;object-position:center}.brand strong{display:block;font-size:19px;letter-spacing:0}.brand small{display:block;color:var(--muted);font-size:12px;overflow-wrap:anywhere}.top-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0}.contact-link{color:var(--muted);font-size:14px;overflow-wrap:anywhere;text-decoration:none}.cart-nav-button{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;border:1px solid rgba(112,189,240,.5);border-radius:8px;background:rgba(22,119,184,.2);color:var(--ink);font-weight:800}.cart-nav-button strong{display:inline-grid;min-width:24px;height:24px;place-items:center;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:12px}.lang-switch{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(16,26,35,.88)}.lang-switch button{min-width:42px;height:36px;border:0;background:transparent;color:var(--muted);cursor:pointer}.lang-switch button.active{background:var(--accent);color:#fff}.hero{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:clamp(24px,5vw,72px);align-items:center;min-height:480px;padding:clamp(34px,7vw,86px) clamp(16px,4vw,48px) 38px;background:linear-gradient(90deg,rgba(8,16,22,.97),rgba(8,16,22,.82) 58%,rgba(8,16,22,.68)),repeating-linear-gradient(90deg,rgba(199,208,216,.06) 0 1px,transparent 1px 42px)}.hero:after{position:absolute;inset:0;z-index:-1;content:"";background:linear-gradient(180deg,transparent 0,rgba(8,16,22,.34) 52%,var(--bg) 100%),radial-gradient(circle at 78% 34%,rgba(22,119,184,.32),transparent 30%)}.hero-copy{max-width:760px}.eyebrow{margin:0 0 10px;color:var(--accent);font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}h1,h2{margin:0;letter-spacing:0}.hero-copy h1{max-width:660px;font-size:clamp(24px,3vw,36px);line-height:1.08}.hero-copy p:not(.eyebrow){max-width:660px;margin:20px 0 0;color:#c5d0da;font-size:18px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border:1px solid transparent;border-radius:8px;font-weight:700;text-decoration:none}.primary-button{background:linear-gradient(180deg,#218bd2,#116aa7);color:#fff;box-shadow:0 12px 28px rgba(22,119,184,.28)}.secondary-button{background:rgba(16,26,35,.92);border-color:var(--line);color:var(--ink)}.hero-visual{position:relative;min-height:330px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#05090d;box-shadow:var(--shadow)}.hero-visual img{width:100%;height:100%;min-height:330px;object-fit:cover;object-position:center}@media (max-width:900px){.topbar,.hero{grid-template-columns:1fr}.topbar{align-items:flex-start}.hero{min-height:auto}.hero-visual,.hero-visual img{min-height:220px}}@media (max-width:560px){.topbar{position:static}.brand small{max-width:210px}.top-actions{justify-content:flex-start}.hero-copy h1{font-size:24px}.hero-actions a{width:100%}}
     </style>
-    <link rel="preload" href="styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript><link rel="stylesheet" href="styles.css" /></noscript>
+    <link rel="stylesheet" href="styles.css" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -110,7 +109,7 @@
         </span>
       </a>
 
-      <nav class="top-actions" aria-label="Contacts and language">
+      <nav class="top-actions" aria-label="Контакти та мова" data-i18n-aria="contactsLabel">
         <a class="contact-link" href="tel:+380675453115">+380 67 545 31 15</a>
         <a class="contact-link" href="mailto:tpolegat@gmail.com">tpolegat@gmail.com</a>
         <a class="contact-link" href="catalog" data-i18n="catalog" data-keep-lang>Каталог</a>
@@ -123,7 +122,7 @@
           <span data-lang-content="uk">Кошик</span><span data-lang-content="ru" hidden>Корзина</span>
           <strong data-cart-count>0</strong>
         </button>
-        <div class="lang-switch" role="group" aria-label="Language">
+        <div class="lang-switch" role="group" aria-label="Мова" data-i18n-aria="language">
           <button class="active" type="button" data-lang="uk">UA</button>
           <button type="button" data-lang="ru">RU</button>
         </div>
@@ -148,7 +147,7 @@
         </div>
       </section>
 
-      <section class="stats" aria-label="Catalog statistics">
+      <section class="stats" aria-label="Статистика каталогу" data-i18n-aria="statsLabel">
         <div>
           <img src="assets/stat-products-480.jpg" srcset="assets/stat-products-480.jpg 480w, assets/stat-products.jpg 900w" sizes="(max-width: 900px) 100vw, 33vw" alt="" loading="lazy" decoding="async">
           <strong id="statProducts">12 171</strong>
@@ -179,7 +178,7 @@
             <a class="secondary-button" href="articles" data-i18n="readArticles" data-keep-lang>Читати статті</a>
           </div>
         </div>
-        <div class="trust-grid" aria-label="FLAKS advantages">
+        <div class="trust-grid" aria-label="Переваги FLAKS" data-i18n-aria="advantagesLabel">
           <div class="trust-card">
             <img src="assets/trust-experience-480.jpg" srcset="assets/trust-experience-320.jpg 320w, assets/trust-experience-480.jpg 480w, assets/trust-experience.jpg 600w" sizes="(max-width: 560px) 100vw, (max-width: 900px) 50vw, 25vw" alt="" loading="lazy" decoding="async">
             <span data-i18n="trustYears">рік початку роботи</span>
@@ -317,10 +316,10 @@
       </section>
 
       <section class="catalog-shell" id="catalog">
-        <aside class="filters" aria-label="Catalog filters">
+        <aside class="filters" aria-label="Фільтри каталогу" data-i18n-aria="filtersLabel">
           <div class="filter-head">
             <h2 data-i18n="catalog">Каталог</h2>
-            <button class="icon-button" type="button" id="resetFilters" aria-label="Reset filters" title="Reset">
+            <button class="icon-button" type="button" id="resetFilters" aria-label="Скинути фільтри" title="Скинути фільтри" data-i18n-aria="resetFilters" data-i18n-title="resetFilters">
               <span aria-hidden="true">↺</span>
             </button>
           </div>
@@ -365,9 +364,9 @@
               <p class="eyebrow" data-i18n="availableNow">Доступно зараз</p>
               <h2><span id="resultCount">…</span> <span data-i18n="found">позицій знайдено</span></h2>
             </div>
-            <div class="view-toggle" role="group" aria-label="View mode">
-              <button class="active" type="button" data-view="table" title="Table">☰</button>
-              <button type="button" data-view="cards" title="Cards">▦</button>
+            <div class="view-toggle" role="group" aria-label="Вигляд каталогу" data-i18n-aria="viewMode">
+              <button class="active" type="button" data-view="table" title="Таблиця" aria-label="Таблиця" data-i18n-title="viewTable" data-i18n-aria="viewTable">☰</button>
+              <button type="button" data-view="cards" title="Картки" aria-label="Картки" data-i18n-title="viewCards" data-i18n-aria="viewCards">▦</button>
             </div>
           </div>
 
@@ -375,11 +374,11 @@
             <table>
               <thead>
                 <tr>
-                  <th data-i18n="tableName">Найменування</th>
-                  <th data-i18n="tableCategory">Категорія</th>
-                  <th data-i18n="tableQty">К-сть</th>
-                  <th data-i18n="tablePrice">Ціна без ПДВ</th>
-                  <th data-i18n="tableAction">Кошик</th>
+                  <th scope="col" data-i18n="tableName">Найменування</th>
+                  <th scope="col" data-i18n="tableCategory">Категорія</th>
+                  <th scope="col" data-i18n="tableQty">К-сть</th>
+                  <th scope="col" data-i18n="tablePrice">Ціна без ПДВ</th>
+                  <th scope="col" data-i18n="tableAction">Кошик</th>
                 </tr>
               </thead>
               <tbody id="productRows"></tbody>
@@ -433,62 +432,7 @@
 
     <script src="assets/cart.js" defer></script>
     <script src="assets/motion.js" defer></script>
-    <script>
-      (() => {
-        const scripts = ["data.1015962b5326.js", "app.js"];
-        let loading;
-
-        function loadScript(src) {
-          return new Promise((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = src;
-            script.async = false;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.body.appendChild(script);
-          });
-        }
-
-        function loadCatalog() {
-          if (!loading) {
-            loading = scripts.reduce((chain, src) => chain.then(() => loadScript(src)), Promise.resolve());
-          }
-          return loading;
-        }
-
-        function handleCatalogTrigger(event) {
-          const node = event.currentTarget;
-          const replayClick = event.type === "click" && node.matches("[data-lang], [data-view], #resetFilters");
-          if (replayClick) event.preventDefault();
-          loadCatalog().then(() => {
-            if (replayClick) node.click();
-          });
-        }
-
-        document.querySelectorAll('a[href="#catalog"], a[href$="#catalog"], input, select, [data-lang], [data-view], #resetFilters').forEach((node) => {
-          node.addEventListener("pointerenter", handleCatalogTrigger, { once: true, passive: true });
-          node.addEventListener("focus", handleCatalogTrigger, { once: true, passive: true });
-          node.addEventListener("click", handleCatalogTrigger, { once: true });
-        });
-
-
-        const params = new URLSearchParams(window.location.search);
-        let initialLang = params.get("lang");
-        if (initialLang !== "uk" && initialLang !== "ru") {
-          try { initialLang = localStorage.getItem("flaks-lang"); } catch { /* Optional preference. */ }
-        }
-        if (initialLang === "ru") {
-          document.querySelectorAll("a[data-keep-lang]").forEach((link) => {
-            const url = new URL(link.getAttribute("href"), window.location.href);
-            url.searchParams.set("lang", "ru");
-            link.setAttribute("href", url.pathname + url.search + url.hash);
-          });
-        }
-        if (window.location.hash === "#catalog" || params.has("q")) {
-          loadCatalog();
-        }
-      })();
-    </script>
+    <script src="assets/catalog-loader.js" data-catalog-data="data.1015962b5326.js" defer></script>
   </body>
 </html>
 
